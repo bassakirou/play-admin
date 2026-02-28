@@ -263,37 +263,38 @@ export default function Roles() {
                           (p) => {
                             const key = `${p.action}:${p.resource}`;
                             // Find ID from DB if available
-                            const dbPerm = (permQuery.data as any[])?.find(
-                              (dp) =>
-                                dp.action === p.action &&
-                                dp.resource === p.resource,
-                            );
                             const checked = permissions
                               .split(",")
                               .map((s) => s.trim())
                               .includes(key);
                             return (
-                              <label
-                                key={key}
-                                className="flex items-center gap-2 text-sm"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={(e) => {
-                                    const set = new Set(
-                                      permissions
-                                        .split(",")
-                                        .map((s) => s.trim())
-                                        .filter(Boolean),
-                                    );
-                                    if (e.target.checked) set.add(key);
-                                    else set.delete(key);
-                                    setPermissions(Array.from(set).join(","));
-                                  }}
-                                />
-                                <span>{p.action}</span>
-                              </label>
+                              (permQuery.data as any[])?.find(
+                                (dp) =>
+                                  dp.action === p.action &&
+                                  dp.resource === p.resource,
+                              ) && (
+                                <label
+                                  key={key}
+                                  className="flex items-center gap-2 text-sm"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      const set = new Set(
+                                        permissions
+                                          .split(",")
+                                          .map((s) => s.trim())
+                                          .filter(Boolean),
+                                      );
+                                      if (e.target.checked) set.add(key);
+                                      else set.delete(key);
+                                      setPermissions(Array.from(set).join(","));
+                                    }}
+                                  />
+                                  <span>{p.action}</span>
+                                </label>
+                              )
                             );
                           },
                         )}

@@ -40,8 +40,9 @@ export default function Genres() {
   });
 
   type FormValues = z.infer<typeof schema>;
+
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       name: "",
       isSystem: false,
@@ -221,7 +222,7 @@ export default function Genres() {
             </CardHeader>
             <CardContent>
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={form.handleSubmit(onSubmit as any)}
                 className="space-y-4"
               >
                 <div className="space-y-2">

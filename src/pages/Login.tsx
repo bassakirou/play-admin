@@ -11,6 +11,7 @@ import {
 } from "../components/ui/card";
 import { useAuth } from "../auth/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
+import api from "../lib/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");

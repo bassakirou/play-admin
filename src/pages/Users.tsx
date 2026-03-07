@@ -141,6 +141,7 @@ export default function Users() {
   const canCreate = canAccess(roleName, permissions, "create", "user");
   const canUpdate = canAccess(roleName, permissions, "update", "user");
   const canDelete = canAccess(roleName, permissions, "delete", "user");
+  const showActions = canUpdate || canDelete;
 
   return (
     <div className="p-6">
@@ -168,7 +169,7 @@ export default function Users() {
                     <th className="p-2">Email</th>
                     <th className="p-2">Nom</th>
                     <th className="p-2">Rôle</th>
-                    <th className="p-2 w-32">Actions</th>
+                    {showActions && <th className="p-2 w-32">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -177,26 +178,28 @@ export default function Users() {
                       <td className="p-2">{u.email}</td>
                       <td className="p-2">{u.name}</td>
                       <td className="p-2">{u.role?.name ?? u.role}</td>
-                      <td className="p-2">
-                        <div className="flex gap-2">
-                          {canUpdate && (
-                            <Button
-                              variant="outline"
-                              onClick={() => openEdit(u)}
-                            >
-                              Éditer
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button
-                              variant="destructive"
-                              onClick={() => deleteMutation.mutate(u.id)}
-                            >
-                              Suppr.
-                            </Button>
-                          )}
-                        </div>
-                      </td>
+                      {showActions && (
+                        <td className="p-2">
+                          <div className="flex gap-2">
+                            {canUpdate && (
+                              <Button
+                                variant="outline"
+                                onClick={() => openEdit(u)}
+                              >
+                                Éditer
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                variant="destructive"
+                                onClick={() => deleteMutation.mutate(u.id)}
+                              >
+                                Suppr.
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -44,7 +44,7 @@ export default function SetupSuperAdmin() {
       } catch {
         /* ignorer l’échec du seed côté UI */
       }
-      await api.post("/users", { email, password, name, role: "ADMIN" });
+      await api.post("/auth/setup", { email, password, name });
       await login(email, password);
       navigate("/", { replace: true });
     } catch (err: any) {

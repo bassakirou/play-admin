@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Button } from "../components/ui/button";
@@ -17,8 +17,21 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSetupDone, setIsSetupDone] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkSetup = async () => {
+      try {
+        const res = await api.get("/auth/setup-status");
+        setIsSetupDone(res.data.isSetup);
+      } catch (e) {
+        console.error("Failed to check setup status", e);
+      }
+    };
+    checkSetup();
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,14 +91,16 @@ export default function Login() {
                 Mot de passe oublié ?
               </Link>
             </div>
-            <div>
-              <Link
-                to="/setup"
-                className="text-sm text-primary underline underline-offset-4"
-              >
-                Créer le super admin
-              </Link>
-            </div>
+            {!isSetupDone && (
+              <div>
+                <Link
+                  to="/setup"
+                  className="text-sm text-primary underline underline-offset-4"
+                >
+                  Créer le super admin
+                </Link>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -61,7 +61,8 @@ export default function Users() {
 
   const saveMutation = useMutation({
     mutationFn: async (payload: UserPayload) => {
-      if (editing) return (await api.put(`/users/${editing.id}`, payload)).data;
+      if (editing)
+        return (await api.patch(`/users/${editing.id}`, payload)).data;
       return (await api.post("/users", payload)).data;
     },
     onSuccess: () => {
@@ -110,7 +111,7 @@ export default function Users() {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editing) {
-      saveMutation.mutate({ email, name });
+      saveMutation.mutate({ email, name, role: role.toUpperCase() });
     } else {
       saveMutation.mutate({
         email,

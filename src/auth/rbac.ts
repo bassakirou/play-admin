@@ -16,7 +16,7 @@ export function canAccess(
   resource?: RBACResource,
 ) {
   if (!action || !resource) return true;
-  if (roleName === "ADMIN") return true;
+  if (roleName === "ADMIN" || roleName === "SUPER_ADMIN") return true;
   if (permissions && permissions.length > 0) {
     return permissions.some(
       (p) => p.action === action && p.resource === resource,

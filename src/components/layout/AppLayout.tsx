@@ -28,7 +28,7 @@ const navItems = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout,permissions } = useAuth();
+  const { user, logout, permissions } = useAuth();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -39,13 +39,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const hasAnyPermission = (resource: string | null) => {
     if (!resource) return true; // Dashboard is always accessible
+
+    // Normalize role name: if user.role is a string, use it; otherwise access .name
+    const roleName =
+      typeof user?.role === "string" ? user?.role : user?.role?.name;
+
     // Check if user has ANY permission (create, read, update, delete, manage) on the resource
     return ["create", "read", "update", "delete", "manage"].some((action) =>
-      canAccess(user?.role?.name, permissions, action as any, resource as RBACResource)
+      canAccess(roleName, permissions, action as any, resource as RBACResource),
     );
   };
 
-  const filteredNavItems = navItems.filter((item) => hasAnyPermission(item.resource));
+  const filteredNavItems = navItems.filter((item) =>
+    hasAnyPermission(item.resource),
+  );
 
   return (
     <div className="grid min-h-screen md:grid-cols-[220px_1fr]">
@@ -74,14 +81,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Sidebar (Drawer) */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
-          <div 
-            className="fixed inset-0 bg-black/50" 
+          <div
+            className="fixed inset-0 bg-black/50"
             onClick={() => setIsMobileMenuOpen(false)}
           />
           <aside className="relative w-64 h-full border-r bg-card p-4 shadow-xl animate-in slide-in-from-left">
             <div className="flex items-center justify-between mb-6">
               <div className="text-lg font-semibold">PyramidPlay</div>
-              <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
                 <X className="h-5 w-5" />
               </Button>
             </div>
@@ -110,12 +121,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-col min-w-0">
         <header className="flex h-14 items-center justify-between gap-2 border-b px-4 bg-background sticky top-0 z-10">
           <div className="flex items-center gap-2 md:hidden">
-            <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(true)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
               <Menu className="h-5 w-5" />
             </Button>
             <div className="font-semibold">PyramidPlay</div>
           </div>
-          
+
           <div className="flex items-center gap-2 ml-auto">
             <ThemeToggle />
             <div className="text-sm text-muted-foreground hidden sm:block">

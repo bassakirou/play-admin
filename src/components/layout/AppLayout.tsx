@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Tag,
+  BellRing,
   Menu,
   X,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const navItems = [
   { to: "/artists", label: "Artistes", icon: Users, resource: "artist" },
   { to: "/users", label: "Utilisateurs", icon: Users, resource: "user" },
   { to: "/roles", label: "Rôles & Droits", icon: Shield, resource: "role" },
+  { to: "/maintenance", label: "Maintenance", icon: BellRing, resource: null },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

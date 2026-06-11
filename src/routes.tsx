@@ -12,6 +12,7 @@ import Artists from "./pages/Artists";
 import Genres from "./pages/Genres";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import MaintenanceSubscribers from "./pages/MaintenanceSubscribers";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -107,6 +108,16 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <Roles />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/maintenance",
+    element: (
+      <RootLayout>
+        <Protected>
+          <MaintenanceSubscribers />
         </Protected>
       </RootLayout>
     ),

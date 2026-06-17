@@ -31,6 +31,9 @@ type MaintenanceResponse = {
 type MaintenanceState = {
   id: string;
   enabled: boolean;
+  adminEnabled: boolean;
+  overrideEnabled: boolean | null;
+  source: "admin" | "env";
   updatedAt: string;
 };
 
@@ -163,6 +166,13 @@ export default function MaintenanceSubscribers() {
             Activez ou desactivez la page de maintenance pour www.pyramidplay.cm
             sans modifier le code.
           </p>
+          {maintenanceState?.source === "env" ? (
+            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              Override actif via `MAINTENANCE_MODE_OVERRIDE=
+              {maintenanceState.overrideEnabled ? "on" : "off"}`. Videz cette
+              variable sur Vercel pour reutiliser le bouton admin.
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -172,6 +182,12 @@ export default function MaintenanceSubscribers() {
                 ? "Maintenance active"
                 : "Maintenance inactive"}
             </p>
+            {maintenanceState?.source === "env" ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Etat admin memorise:{" "}
+                {maintenanceState.adminEnabled ? "ON" : "OFF"}
+              </p>
+            ) : null}
           </div>
 
           <Button
@@ -179,15 +195,21 @@ export default function MaintenanceSubscribers() {
             onClick={() =>
               maintenanceToggleMutation.mutate(!maintenanceState?.enabled)
             }
-            disabled={isLoadingState || maintenanceToggleMutation.isPending}
+            disabled={
+              isLoadingState ||
+              maintenanceToggleMutation.isPending ||
+              maintenanceState?.source === "env"
+            }
             variant={maintenanceState?.enabled ? "destructive" : "default"}
             className="min-w-44"
           >
             {maintenanceToggleMutation.isPending
               ? "Mise a jour..."
-              : maintenanceState?.enabled
-                ? "Passer a OFF"
-                : "Passer a ON"}
+              : maintenanceState?.source === "env"
+                ? "Override par variable"
+                : maintenanceState?.enabled
+                  ? "Passer a OFF"
+                  : "Passer a ON"}
           </Button>
         </CardContent>
       </Card>

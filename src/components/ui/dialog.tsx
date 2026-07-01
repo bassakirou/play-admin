@@ -16,7 +16,7 @@ export function Dialog({ open, onOpenChange, title, children, className }: Dialo
       <div className="absolute inset-0 bg-black/50" onClick={() => onOpenChange(false)} />
       <div
         className={cn(
-          'relative z-10 w-full max-w-2xl rounded-md border bg-card p-4 shadow-lg',
+          'relative z-10 w-full max-w-2xl rounded-md border bg-card p-4 shadow-lg max-h-[90vh] overflow-y-auto',
           className
         )}
       >

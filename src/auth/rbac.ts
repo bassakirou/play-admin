@@ -1,6 +1,7 @@
 export type RBACAction = "create" | "read" | "update" | "delete" | "manage";
 export type RBACResource =
   | "song"
+  | "video"
   | "album"
   | "user"
   | "role"
@@ -49,6 +50,7 @@ export function canAccess(
 
 export const ALL_PERMISSIONS: Permission[] = [
   "song",
+  "video",
   "album",
   "artist",
   "genre",

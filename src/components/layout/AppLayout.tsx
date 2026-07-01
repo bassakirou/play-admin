@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import {
   Library,
   Music,
+  Video,
   Users,
   Shield,
   LayoutDashboard,
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, resource: null },
   { to: "/songs", label: "Songs", icon: Music, resource: "song" },
   { to: "/albums", label: "Albums", icon: Library, resource: "album" },
+  { to: "/videos", label: "Vidéos", icon: Video, resource: "video" },
   { to: "/genres", label: "Genres", icon: Tag, resource: "genre" },
   { to: "/artists", label: "Artistes", icon: Users, resource: "artist" },
   { to: "/users", label: "Utilisateurs", icon: Users, resource: "user" },

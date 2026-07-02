@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { Input } from "../components/ui/input";
+import { Switch } from "../components/ui/switch";
 
 type MaintenanceSubscription = {
   id: string;
@@ -31,6 +32,7 @@ type MaintenanceResponse = {
 type MaintenanceState = {
   id: string;
   enabled: boolean;
+  adminPriority: boolean;
   adminEnabled: boolean;
   overrideEnabled: boolean | null;
   source: "admin" | "env";
@@ -82,6 +84,29 @@ export default function MaintenanceSubscribers() {
       const message =
         error?.response?.data?.message ||
         "Impossible de modifier l etat du mode maintenance.";
+      toast.error(message);
+    },
+  });
+
+  const priorityToggleMutation = useMutation({
+    mutationFn: async (adminPriority: boolean) =>
+      (
+        await api.patch("/maintenance-subscriptions/state", {
+          adminPriority,
+        })
+      ).data as MaintenanceState,
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["maintenance-state"] });
+      toast.success(
+        result.adminPriority
+          ? "La priorite a l admin est maintenant active."
+          : "La priorite a l admin est maintenant desactivee.",
+      );
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message ||
+        "Impossible de modifier la priorite.";
       toast.error(message);
     },
   });
@@ -174,43 +199,65 @@ export default function MaintenanceSubscribers() {
             </p>
           ) : null}
         </CardHeader>
-        <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">Etat actuel</p>
-            <p className="mt-1 text-lg font-semibold">
-              {maintenanceState?.enabled
-                ? "Maintenance active"
-                : "Maintenance inactive"}
-            </p>
-            {maintenanceState?.source === "env" ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Etat admin memorise:{" "}
-                {maintenanceState.adminEnabled ? "ON" : "OFF"}
+        <CardContent className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-6 border-zinc-100 dark:border-zinc-800">
+            <div className="space-y-1">
+              <label htmlFor="admin-priority-switch" className="text-base font-semibold">
+                Prioriser la configuration de l'admin
+              </label>
+              <p className="text-sm text-muted-foreground">
+                Activez pour appliquer l'etat de maintenance ci-dessous au site. Sinon, la logique du code frontend s'applique.
               </p>
-            ) : null}
+            </div>
+            <Switch
+              id="admin-priority-switch"
+              checked={maintenanceState?.adminPriority ?? false}
+              onCheckedChange={(checked) => priorityToggleMutation.mutate(checked)}
+              disabled={isLoadingState || priorityToggleMutation.isPending}
+            />
           </div>
 
-          <Button
-            type="button"
-            onClick={() =>
-              maintenanceToggleMutation.mutate(!maintenanceState?.enabled)
-            }
-            disabled={
-              isLoadingState ||
-              maintenanceToggleMutation.isPending ||
-              maintenanceState?.source === "env"
-            }
-            variant={maintenanceState?.enabled ? "destructive" : "default"}
-            className="min-w-44"
-          >
-            {maintenanceToggleMutation.isPending
-              ? "Mise a jour..."
-              : maintenanceState?.source === "env"
-                ? "Override par variable"
-                : maintenanceState?.enabled
-                  ? "Passer a OFF"
-                  : "Passer a ON"}
-          </Button>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Etat de la maintenance admin</p>
+              <p className="mt-1 text-lg font-semibold">
+                {maintenanceState?.enabled
+                  ? "Maintenance active"
+                  : "Maintenance inactive"}
+              </p>
+              {maintenanceState?.source === "env" ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Etat admin memorise:{" "}
+                  {maintenanceState.adminEnabled ? "ON" : "OFF"}
+                </p>
+              ) : null}
+            </div>
+
+            <Button
+              type="button"
+              onClick={() =>
+                maintenanceToggleMutation.mutate(!maintenanceState?.enabled)
+              }
+              disabled={
+                isLoadingState ||
+                maintenanceToggleMutation.isPending ||
+                maintenanceState?.source === "env" ||
+                !maintenanceState?.adminPriority
+              }
+              variant={maintenanceState?.enabled ? "destructive" : "default"}
+              className="min-w-44"
+            >
+              {maintenanceToggleMutation.isPending
+                ? "Mise a jour..."
+                : maintenanceState?.source === "env"
+                  ? "Override par variable"
+                  : !maintenanceState?.adminPriority
+                    ? "Priorite admin requise"
+                    : maintenanceState?.enabled
+                      ? "Passer a OFF"
+                      : "Passer a ON"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

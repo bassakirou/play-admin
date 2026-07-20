@@ -14,6 +14,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import MaintenanceSubscribers from "./pages/MaintenanceSubscribers";
 import Videos from "./pages/Videos";
+import Migration from "./pages/Migration";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -129,6 +130,16 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <MaintenanceSubscribers />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/migration",
+    element: (
+      <RootLayout>
+        <Protected>
+          <Migration />
         </Protected>
       </RootLayout>
     ),

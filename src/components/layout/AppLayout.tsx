@@ -13,6 +13,7 @@ import {
   BellRing,
   Menu,
   X,
+  Download,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { cn } from "../../lib/utils";
@@ -29,6 +30,7 @@ const navItems = [
   { to: "/users", label: "Utilisateurs", icon: Users, resource: "user" },
   { to: "/roles", label: "Rôles & Droits", icon: Shield, resource: "role" },
   { to: "/maintenance", label: "Maintenance", icon: BellRing, resource: null },
+  { to: "/migration", label: "Migration & Backup", icon: Download, resource: null },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

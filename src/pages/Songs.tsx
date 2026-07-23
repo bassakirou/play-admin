@@ -431,6 +431,7 @@ export default function Songs() {
               </div>
               <div className="sm:col-span-2 space-y-1">
                 <FileDropzone
+                  initialItems={form.watch("audioUrl") ? [form.watch("audioUrl")] : []}
                   onSelected={async (file, meta) => {
                     try {
                       const fd = new FormData();
@@ -465,7 +466,7 @@ export default function Songs() {
                 <label className="text-sm font-medium">Artistes</label>
                 <MultiSelect
                   options={artistOptions}
-                  value={form.watch("artistIds")}
+                  value={form.watch("artistIds") || []}
                   onChange={(vals) => {
                     form.setValue("artistIds", vals);
                     if (vals.length > 0) form.clearErrors("artistIds");
@@ -519,6 +520,8 @@ export default function Songs() {
               <div className="sm:col-span-2 space-y-1">
                 <ImageDropzone
                   accept="image/jpeg,image/png,image/webp"
+                  valueUrl={form.watch("coverUrl") || ""}
+                  onRemoveValueUrl={() => form.setValue("coverUrl", "")}
                   onSelected={async (file) => {
                     if (!file) {
                       form.setValue("coverUrl", "");

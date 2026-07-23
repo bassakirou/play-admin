@@ -471,6 +471,7 @@ export default function Videos() {
                 <ImageDropzone
                   accept="image/jpeg,image/png,image/webp"
                   valueUrl={form.watch("thumbnailUrl") || undefined}
+                  onRemoveValueUrl={() => form.setValue("thumbnailUrl", "")}
                   onSelected={(file) => {
                     void uploadThumbnail(file);
                   }}

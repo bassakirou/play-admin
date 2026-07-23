@@ -154,10 +154,20 @@ export default function Artists() {
 
       if (payload.image) {
         updateData.imageUrl = await uploadImage(payload.image);
+      } else if (editingArtist) {
+        updateData.imageUrl = editingArtist.imageUrl;
       }
+
       if (payload.banner) {
         updateData.bannerUrl = await uploadImage(payload.banner);
+      } else if (editingArtist) {
+        updateData.bannerUrl = editingArtist.bannerUrl;
       }
+
+      if (editingArtist) {
+        updateData.gallery = editingArtist.gallery || null;
+      }
+
       if (payload.galleryFiles?.length) {
         const newUrls = await Promise.all(
           payload.galleryFiles.map((f: File) => uploadImage(f)),

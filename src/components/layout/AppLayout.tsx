@@ -14,7 +14,6 @@ import {
   X,
   Download,
   PanelLeft,
-  Disc3,
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
@@ -102,31 +101,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b">
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-2.5 font-bold text-base tracking-tight">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-primary to-indigo-600 flex items-center justify-center text-primary-foreground shadow-md">
-                <Disc3 className="h-5 w-5 animate-spin-slow" />
-              </div>
-              <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                PyramidPlay
-              </span>
+        <div className="flex h-16 items-center justify-center px-4 border-b">
+          {!sidebarCollapsed ? (
+            <div className="flex items-center gap-2">
+              <img
+                src="/assets/pyramid-play-white.svg"
+                alt="PyramidPlay Logo"
+                className="h-7 w-auto dark:block hidden"
+              />
+              <img
+                src="/assets/pyramid-play.svg"
+                alt="PyramidPlay Logo"
+                className="h-7 w-auto dark:hidden block"
+              />
             </div>
+          ) : (
+            <img
+              src="/assets/play-icone.png"
+              alt="PyramidPlay Icon"
+              className="h-8 w-8 mx-auto object-contain cursor-pointer"
+              onClick={() => setSidebarCollapsed(false)}
+            />
           )}
-          {sidebarCollapsed && (
-            <div className="h-8 w-8 mx-auto rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
-              <Disc3 className="h-5 w-5" />
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground hidden md:flex"
-            title={sidebarCollapsed ? "Développer le menu" : "Réduire le menu"}
-          >
-            <PanelLeft className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Quick Create Action Button */}
@@ -204,11 +200,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <aside className="relative w-[280px] h-full border-r bg-card p-4 shadow-2xl flex flex-col justify-between animate-in slide-in-from-left">
             <div>
               <div className="flex items-center justify-between pb-4 border-b mb-4">
-                <div className="flex items-center gap-2.5 font-bold text-base">
-                  <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow">
-                    <Disc3 className="h-5 w-5" />
-                  </div>
-                  <span>PyramidPlay Admin</span>
+                <div className="flex items-center gap-2">
+                  <img
+                    src="/assets/pyramid-play-white.svg"
+                    alt="PyramidPlay Logo"
+                    className="h-7 w-auto dark:block hidden"
+                  />
+                  <img
+                    src="/assets/pyramid-play.svg"
+                    alt="PyramidPlay Logo"
+                    className="h-7 w-auto dark:hidden block"
+                  />
                 </div>
                 <Button
                   variant="ghost"

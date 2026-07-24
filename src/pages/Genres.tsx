@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
 import { Dialog } from "../components/ui/dialog";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Pencil, Trash2, Plus, Tag } from "lucide-react";
 
 type Genre = {
@@ -33,6 +34,7 @@ export default function Genres() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Genre | null>(null);
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Genre | null>(null);
 
   const schema = z.object({
     name: z.string().min(1, "Le nom est requis"),
@@ -104,13 +106,7 @@ export default function Genres() {
   };
 
   const handleDelete = (genre: Genre) => {
-    if (
-      window.confirm(
-        `Êtes-vous sûr de vouloir supprimer le genre "${genre.name}" ?`,
-      )
-    ) {
-      deleteMutation.mutate(genre.id);
-    }
+    setDeleteTarget(genre);
   };
 
   const filteredGenres = genres?.filter((g) =>
@@ -273,6 +269,21 @@ export default function Genres() {
           </Card>
         </div>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Supprimer le genre "${deleteTarget?.name}" ?`}
+        description="Voulez-vous vraiment supprimer ce genre musical ? Cette action est irréversible."
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) {
+            deleteMutation.mutate(deleteTarget.id, {
+              onSettled: () => setDeleteTarget(null),
+            });
+          }
+        }}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
 import { Dialog } from "../components/ui/dialog";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { MultiSelect } from "../components/ui/multi-select";
@@ -49,6 +50,7 @@ export default function Songs() {
   const [player] = useState<HTMLAudioElement>(() => new Audio());
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Song | null>(null);
 
   const schema = z.object({
     title: z.string().min(1, "Le titre est requis"),
@@ -350,7 +352,7 @@ export default function Songs() {
                           {canDelete && (
                             <Button
                               variant="destructive"
-                              onClick={() => deleteMutation.mutate(s.id)}
+                              onClick={() => setDeleteTarget(s)}
                             >
                               Suppr.
                             </Button>
@@ -581,6 +583,21 @@ export default function Songs() {
               </div>
             </form>
           </Dialog>
+
+          <ConfirmDialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => !open && setDeleteTarget(null)}
+            title={`Supprimer le single "${deleteTarget?.title}" ?`}
+            description="Voulez-vous vraiment supprimer ce single ? Cette action est irréversible."
+            loading={deleteMutation.isPending}
+            onConfirm={() => {
+              if (deleteTarget) {
+                deleteMutation.mutate(deleteTarget.id, {
+                  onSettled: () => setDeleteTarget(null),
+                });
+              }
+            }}
+          />
         </CardContent>
       </Card>
     </div>

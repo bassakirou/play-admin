@@ -8,6 +8,7 @@ import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
 import { toast } from "sonner";
 import { Dialog } from "../components/ui/dialog";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -45,6 +46,7 @@ export default function Videos() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Video | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Video | null>(null);
 
   const schema = z.object({
     title: z.string().min(1),
@@ -362,7 +364,7 @@ export default function Videos() {
                             {canDelete && (
                               <Button
                                 variant="destructive"
-                                onClick={() => deleteMutation.mutate(v.id)}
+                                onClick={() => setDeleteTarget(v)}
                               >
                                 Suppr.
                               </Button>
@@ -551,6 +553,21 @@ export default function Videos() {
               </div>
             </form>
           </Dialog>
+
+          <ConfirmDialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => !open && setDeleteTarget(null)}
+            title={`Supprimer la vidéo "${deleteTarget?.title}" ?`}
+            description="Voulez-vous vraiment supprimer cette vidéo ? Cette action est irréversible."
+            loading={deleteMutation.isPending}
+            onConfirm={() => {
+              if (deleteTarget) {
+                deleteMutation.mutate(deleteTarget.id, {
+                  onSettled: () => setDeleteTarget(null),
+                });
+              }
+            }}
+          />
         </CardContent>
       </Card>
     </div>

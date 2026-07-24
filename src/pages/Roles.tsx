@@ -11,6 +11,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { ALL_PERMISSIONS, canAccess } from "../auth/rbac";
 
 type Role = {
@@ -24,6 +25,7 @@ export default function Roles() {
   const { user, permissions: authPermissions } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Role | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
   const [name, setName] = useState("");
   const [permissions, setPermissions] = useState("");
   const [search, setSearch] = useState("");
@@ -209,7 +211,7 @@ export default function Roles() {
                           {canDelete && (
                             <Button
                               variant="destructive"
-                              onClick={() => deleteMutation.mutate(r.id)}
+                              onClick={() => setDeleteTarget(r)}
                             >
                               Suppr.
                             </Button>
@@ -320,6 +322,21 @@ export default function Roles() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Supprimer le rôle "${deleteTarget?.name}" ?`}
+        description="Voulez-vous vraiment supprimer ce rôle ? Les utilisateurs associés perdronnt ces permissions."
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) {
+            deleteMutation.mutate(deleteTarget.id, {
+              onSettled: () => setDeleteTarget(null),
+            });
+          }
+        }}
+      />
     </div>
   );
 }

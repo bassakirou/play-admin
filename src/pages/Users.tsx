@@ -11,6 +11,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Dialog } from "../components/ui/dialog";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Select } from "../components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
@@ -38,6 +39,7 @@ export default function Users() {
   const { user, permissions } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<AppUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState("user");
@@ -193,7 +195,7 @@ export default function Users() {
                             {canDelete && (
                               <Button
                                 variant="destructive"
-                                onClick={() => deleteMutation.mutate(u.id)}
+                                onClick={() => setDeleteTarget(u)}
                               >
                                 Suppr.
                               </Button>
@@ -329,6 +331,21 @@ export default function Users() {
               </div>
             </form>
           </Dialog>
+
+          <ConfirmDialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => !open && setDeleteTarget(null)}
+            title={`Supprimer l'utilisateur "${deleteTarget?.email}" ?`}
+            description="Voulez-vous vraiment supprimer cet utilisateur ? Ses données d'accès seront définitivement révoquées."
+            loading={deleteMutation.isPending}
+            onConfirm={() => {
+              if (deleteTarget) {
+                deleteMutation.mutate(deleteTarget.id, {
+                  onSettled: () => setDeleteTarget(null),
+                });
+              }
+            }}
+          />
         </CardContent>
       </Card>
     </div>

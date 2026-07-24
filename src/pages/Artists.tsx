@@ -13,6 +13,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Dialog } from "../components/ui/dialog";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { MultiSelect } from "../components/ui/multi-select";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { Checkbox } from "../components/ui/checkbox";
@@ -47,6 +48,7 @@ export default function Artists() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Artist | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -369,10 +371,7 @@ export default function Artists() {
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  onClick={() => {
-                                    if (confirm("Supprimer cet artiste ?"))
-                                      deleteArtistMutation.mutate(a.id);
-                                  }}
+                                  onClick={() => setDeleteTarget(a)}
                                 >
                                   Suppr.
                                 </Button>
@@ -686,6 +685,21 @@ export default function Artists() {
               )}
             </div>
           </Dialog>
+
+          <ConfirmDialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => !open && setDeleteTarget(null)}
+            title={`Supprimer l'artiste "${deleteTarget?.name}" ?`}
+            description="Voulez-vous vraiment supprimer cet artiste ? Ses chansons et albums seront également affectés. Cette action est irréversible."
+            loading={deleteArtistMutation.isPending}
+            onConfirm={() => {
+              if (deleteTarget) {
+                deleteArtistMutation.mutate(deleteTarget.id, {
+                  onSettled: () => setDeleteTarget(null),
+                });
+              }
+            }}
+          />
         </CardContent>
       </Card>
     </div>

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
 import { Dialog } from "../components/ui/dialog";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 
@@ -38,6 +39,7 @@ export default function Albums() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Album | null>(null);
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Album | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -362,7 +364,7 @@ export default function Albums() {
                           {canDelete && (
                             <Button
                               variant="destructive"
-                              onClick={() => deleteMutation.mutate(a.id)}
+                              onClick={() => setDeleteTarget(a)}
                             >
                               Suppr.
                             </Button>
@@ -489,6 +491,21 @@ export default function Albums() {
               </div>
             </form>
           </Dialog>
+
+          <ConfirmDialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => !open && setDeleteTarget(null)}
+            title={`Supprimer l'album "${deleteTarget?.title}" ?`}
+            description="Voulez-vous vraiment supprimer cet album et toutes ses chansons associées ? Cette action est irréversible."
+            loading={deleteMutation.isPending}
+            onConfirm={() => {
+              if (deleteTarget) {
+                deleteMutation.mutate(deleteTarget.id, {
+                  onSettled: () => setDeleteTarget(null),
+                });
+              }
+            }}
+          />
         </CardContent>
       </Card>
     </div>

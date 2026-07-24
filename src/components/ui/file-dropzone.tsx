@@ -173,7 +173,9 @@ export function FileDropzone(props: Props) {
                 <span className="text-base flex-shrink-0">♪</span>
                 <span className="truncate">
                   {names[0] ||
-                    "Glisser-déposer une musique, ou cliquer pour choisir"}
+                    ((props as any).initialItems && (props as any).initialItems[0]
+                      ? (props as any).initialItems[0].split("/").pop()
+                      : "Glisser-déposer une musique, ou cliquer pour choisir")}
                 </span>
               </div>
             </div>

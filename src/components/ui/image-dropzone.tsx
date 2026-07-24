@@ -104,7 +104,13 @@ export function ImageDropzone({
   const getEffectiveUrl = (url?: string | null, preview?: string | null) => {
     if (preview) return preview;
     if (!url) return null;
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      if (/localhost:9000|media\.pyramidplay\.cm/.test(url) && !url.includes("resolved-image")) {
+        const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
+        return `${base}/files/resolved-image?url=${encodeURIComponent(url)}`;
+      }
+      return url;
+    }
     if (url.startsWith("/")) {
       const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
       return `${base}${url}`;

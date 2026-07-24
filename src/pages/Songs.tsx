@@ -49,45 +49,16 @@ export default function Songs() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const schema = z
-    .object({
-      title: z.string().min(1),
-      duration: z.coerce.number().int().positive(),
-      audioUrl: z.string().min(1),
-      artistIds: z.array(z.string().uuid()).min(1),
-      groupIds: z.array(z.string().uuid()).optional(),
-      kind: z.enum(["single", "album"]),
-      coverUrl: z.string().url().optional().or(z.literal("")),
-      albumId: z.string().uuid().optional().or(z.literal("")),
-      genreId: z.string().uuid(),
-      releaseDate: z.string().optional(),
-    })
-    .superRefine((values, ctx) => {
-      if (values.kind === "single") {
-        if (!values.coverUrl || values.coverUrl.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["coverUrl"],
-            message: "La couverture est obligatoire pour un single",
-          });
-        }
-        if (values.albumId && values.albumId !== "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["albumId"],
-            message: "Un single ne doit pas être rattaché à un album",
-          });
-        }
-      } else {
-        if (!values.albumId || values.albumId === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["albumId"],
-            message: "L’album est obligatoire pour un titre d’album",
-          });
-        }
-      }
-    });
+  const schema = z.object({
+    title: z.string().min(1, "Le titre est requis"),
+    duration: z.coerce.number().int().positive(),
+    audioUrl: z.string().min(1, "Un fichier audio est requis"),
+    artistIds: z.array(z.string().uuid()).min(1, "Au moins un artiste est requis"),
+    groupIds: z.array(z.string().uuid()).optional(),
+    coverUrl: z.string().min(1, "La couverture est obligatoire pour un single"),
+    genreId: z.string().uuid("Le genre est requis"),
+    releaseDate: z.string().optional(),
+  });
   type FormValues = z.infer<typeof schema>;
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as any,
@@ -97,14 +68,11 @@ export default function Songs() {
       audioUrl: "",
       artistIds: [],
       groupIds: [],
-      kind: "single",
       coverUrl: "",
-      albumId: "",
       genreId: "",
       releaseDate: "",
     },
   });
-  const [albumSelection, setAlbumSelection] = useState<string[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["songs"],
@@ -124,15 +92,6 @@ export default function Songs() {
     queryFn: async () =>
       (await api.get("/artist-groups")).data as { id: string; name: string }[],
   });
-  const albumsQuery = useQuery({
-    queryKey: ["albums-all"],
-    queryFn: async () =>
-      (await api.get("/albums")).data as {
-        id: string;
-        title: string;
-        artistId: string;
-      }[],
-  });
   const genresQuery = useQuery({
     queryKey: ["genres"],
     queryFn: async () =>
@@ -151,9 +110,9 @@ export default function Songs() {
       setShowForm(false);
       setEditing(null);
       form.reset();
-      toast.success(editing ? "Chanson mise à jour" : "Chanson créée");
+      toast.success(editing ? "Single mis à jour" : "Single créé");
     },
-    onError: () => toast.error("Échec de sauvegarde de la chanson"),
+    onError: () => toast.error("Échec de sauvegarde du single"),
   });
   const groupMutation = useMutation({
     mutationFn: async (payload: { name: string; memberIds: string[] }) =>
@@ -235,47 +194,49 @@ export default function Songs() {
 
   const openCreate = () => {
     setEditing(null);
-    form.reset();
-    setAlbumSelection([]);
+    form.reset({
+      title: "",
+      duration: 0,
+      audioUrl: "",
+      artistIds: [],
+      groupIds: [],
+      coverUrl: "",
+      genreId: "",
+      releaseDate: "",
+    });
     setGroupName("");
     setGroupMembers([]);
     setShowForm(true);
   };
   const openEdit = (song: Song) => {
     setEditing(song);
-    const isSingle = song.isSingle ?? !song.albumId;
     form.reset({
       title: song.title,
       duration: song.duration,
       audioUrl: song.audioUrl,
       artistIds: (song.artists || []).map((a) => a.id),
       groupIds: (song.groups || []).map((g) => g.id),
-      kind: isSingle ? "single" : "album",
       coverUrl: song.coverUrl || "",
-      albumId: song.albumId || "",
       genreId: song.genreId || "",
     });
-    setAlbumSelection(song.albumId && !isSingle ? [song.albumId] : []);
     setShowForm(true);
   };
   const onSubmit = (values: FormValues) => {
-    const isSingle = values.kind === "single";
     saveMutation.mutate({
       title: values.title,
       duration: values.duration,
       audioUrl: values.audioUrl,
       artistIds: values.artistIds,
       groupIds: values.groupIds,
-      isSingle,
+      isSingle: true,
       coverUrl: values.coverUrl || undefined,
-      albumId: isSingle ? undefined : values.albumId || undefined,
       genreId: values.genreId,
       releaseDate: values.releaseDate,
     });
   };
 
   const filtered = useMemo(() => {
-    const list = data || [];
+    const list = (data || []).filter((s) => s.isSingle ?? !s.albumId);
     return list.filter((s) =>
       s.title.toLowerCase().includes(search.toLowerCase()),
     );
@@ -303,17 +264,9 @@ export default function Songs() {
     value: g.id,
     label: g.name,
   }));
-  const albumOptions = (albumsQuery.data || []).map((a) => ({
-    value: a.id,
-    label: a.title,
-  }));
   const genreOptions = [{ value: "", label: "— Choisir un genre —" }].concat(
     (genresQuery.data || []).map((g) => ({ value: g.id, label: g.name })),
   );
-  const kindOptions = [
-    { value: "single", label: "Single" },
-    { value: "album", label: "Titre d’album" },
-  ];
 
   // Debug: log form errors
   useEffect(() => {
@@ -326,15 +279,15 @@ export default function Songs() {
     <div className="p-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Songs</CardTitle>
+          <CardTitle>Singles</CardTitle>
           <div className="flex gap-2">
             <Input
-              placeholder="Rechercher un titre…"
+              placeholder="Rechercher un single…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-56"
             />
-            {canCreate && <Button onClick={openCreate}>Nouveau</Button>}
+            {canCreate && <Button onClick={openCreate}>Nouveau single</Button>}
           </div>
         </CardHeader>
         <CardContent>
@@ -415,7 +368,7 @@ export default function Songs() {
           <Dialog
             open={showForm}
             onOpenChange={setShowForm}
-            title={editing ? "Mettre à jour une chanson" : "Nouvelle chanson"}
+            title={editing ? "Mettre à jour un single" : "Nouveau single"}
           >
             <form
               onSubmit={form.handleSubmit(onSubmit as any)}
@@ -459,10 +412,6 @@ export default function Songs() {
                 )}
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">Type</label>
-                <Select options={kindOptions} {...form.register("kind")} />
-              </div>
-              <div className="space-y-1">
                 <label className="text-sm font-medium">Artistes</label>
                 <MultiSelect
                   options={artistOptions}
@@ -497,25 +446,6 @@ export default function Songs() {
                 >
                   Créer un groupe
                 </Button>
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Album</label>
-                <MultiSelect
-                  options={albumOptions}
-                  value={albumSelection}
-                  multiple={false}
-                  onChange={(vals) => {
-                    setAlbumSelection(vals);
-                    form.setValue("albumId", vals[0] || "");
-                    if (vals.length > 0) form.clearErrors("albumId");
-                  }}
-                  placeholder="Rechercher un album..."
-                />
-                {form.formState.errors.albumId && (
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.albumId.message as string}
-                  </p>
-                )}
               </div>
               <div className="sm:col-span-2 space-y-1">
                 <ImageDropzone

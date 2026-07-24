@@ -163,6 +163,18 @@ export default function Albums() {
     setShowForm(true);
   };
   const onSubmit = async (values: FormValues) => {
+    // 1. Validation obligatoire : un album doit obligatoirement avoir au moins 1 titre audio
+    if (!editing && (!pendingFiles || pendingFiles.length === 0)) {
+      toast.error("Un album doit obligatoirement contenir au moins une chanson");
+      return;
+    }
+
+    const existingSongsCount = editing?.songs?.length || 0;
+    if (editing && existingSongsCount + (pendingFiles?.length || 0) === 0) {
+      toast.error("Un album doit obligatoirement contenir au moins une chanson");
+      return;
+    }
+
     try {
       const album = await saveMutation.mutateAsync({
         title: values.title,
@@ -171,10 +183,7 @@ export default function Albums() {
         coverUrl: values.coverUrl || undefined,
         description: values.description || undefined,
       });
-      if (!editing && !pendingFiles.length) {
-        toast.error("Ajoutez au moins un fichier audio");
-        return;
-      }
+
       for (let i = 0; i < pendingFiles.length; i++) {
         const f = pendingFiles[i];
         const d = pendingDurations[i];
@@ -201,9 +210,9 @@ export default function Albums() {
       form.reset();
       setPendingFiles([]);
       setPendingDurations([]);
-      toast.success("Album et chansons créés");
+      toast.success(editing ? "Album mis à jour" : "Album et chansons créés");
     } catch {
-      toast.error("Échec de création");
+      toast.error("Échec de création de l'album");
     }
   };
 

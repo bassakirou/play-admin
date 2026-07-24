@@ -22,7 +22,7 @@ import { useState } from "react";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, resource: null },
-  { to: "/songs", label: "Songs", icon: Music, resource: "song" },
+  { to: "/songs", label: "Singles", icon: Music, resource: "song" },
   { to: "/albums", label: "Albums", icon: Library, resource: "album" },
   { to: "/videos", label: "Vidéos", icon: Video, resource: "video" },
   { to: "/genres", label: "Genres", icon: Tag, resource: "genre" },

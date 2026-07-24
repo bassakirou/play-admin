@@ -534,7 +534,7 @@ export default function Videos() {
                   placeholder="Rechercher une playlist..."
                 />
               </div>
-              <div className="flex justify-end gap-2 sm:col-span-2 pt-3 border-t mt-4 sticky bottom-0 bg-card z-10 -mx-6 -mb-6 p-4 px-6">
+              <div className="flex gap-2 sm:col-span-2 pt-3 border-t mt-4">
                 <Button type="submit" disabled={saveMutation.isPending}>
                   {editing ? "Mettre à jour" : "Créer"}
                 </Button>

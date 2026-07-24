@@ -25,20 +25,20 @@ export function Dialog({ open, onOpenChange, title, children, footer, className 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-10 flex items-start justify-center">
+      {/* Backdrop overlay click handler */}
+      <div className="fixed inset-0 -z-10" onClick={() => onOpenChange(false)} />
 
-      {/* Modal Container */}
+      {/* Modal Card Container */}
       <div
         className={cn(
-          'relative z-10 w-full max-w-2xl rounded-xl border bg-card text-card-foreground shadow-2xl flex flex-col max-h-[88vh] overflow-hidden',
+          'relative z-10 w-full max-w-2xl my-auto rounded-xl border bg-card text-card-foreground shadow-2xl overflow-hidden',
           className
         )}
       >
-        {/* Fixed Header */}
+        {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b shrink-0 bg-card">
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-card">
             <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
             <button
               type="button"
@@ -50,14 +50,14 @@ export function Dialog({ open, onOpenChange, title, children, footer, className 
           </div>
         )}
 
-        {/* Scrollable Content Body */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Content Body */}
+        <div className="p-6">
           {children}
         </div>
 
-        {/* Fixed Footer */}
+        {/* Footer (if provided) */}
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t shrink-0 bg-card">
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t bg-card">
             {footer}
           </div>
         )}

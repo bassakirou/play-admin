@@ -151,8 +151,10 @@ export default function Songs() {
   const resolveAudioUrl = (u: string) => {
     if (!u) return "";
     if (u.startsWith("http://") || u.startsWith("https://")) {
-      // Legacy MinIO direct link without query: route via API resolver to get a presigned URL
-      if (/localhost:9000/.test(u) && !u.includes("?")) {
+      if (
+        (/localhost:9000|media\.pyramidplay\.cm/.test(u)) &&
+        !u.includes("resolved-audio")
+      ) {
         const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
         return `${base}/files/resolved-audio?url=${encodeURIComponent(u)}`;
       }

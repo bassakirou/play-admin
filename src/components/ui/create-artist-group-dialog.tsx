@@ -5,6 +5,7 @@ import { Dialog } from "./dialog";
 import { Button } from "./button";
 import { Input } from "./input";
 import { MultiSelect } from "./multi-select";
+import { ImageDropzone } from "./image-dropzone";
 import { toast } from "sonner";
 
 type Option = {
@@ -28,9 +29,10 @@ export function CreateArtistGroupDialog({
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [imageUrl, setImageUrl] = useState("");
 
   const groupMutation = useMutation({
-    mutationFn: async (payload: { name: string; memberIds: string[] }) =>
+    mutationFn: async (payload: { name: string; memberIds: string[]; imageUrl?: string }) =>
       (await api.post("/artist-groups", payload)).data,
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["artist-groups"] });
@@ -39,6 +41,7 @@ export function CreateArtistGroupDialog({
       onOpenChange(false);
       setName("");
       setMemberIds([]);
+      setImageUrl("");
       onSuccess?.(data);
     },
     onError: () => toast.error("Échec de création du groupe"),
@@ -53,6 +56,7 @@ export function CreateArtistGroupDialog({
     groupMutation.mutate({
       name: name.trim(),
       memberIds,
+      imageUrl: imageUrl || undefined,
     });
   };
 
@@ -81,6 +85,40 @@ export function CreateArtistGroupDialog({
             onChange={setMemberIds}
             placeholder="Sélectionner des artistes..."
           />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Image du groupe (optionnel)</label>
+          <ImageDropzone
+            accept="image/jpeg,image/png,image/webp"
+            valueUrl={imageUrl}
+            previewSize={90}
+            onRemoveValueUrl={() => setImageUrl("")}
+            onSelected={async (file) => {
+              if (!file) {
+                setImageUrl("");
+                return;
+              }
+              try {
+                const fd = new FormData();
+                fd.append("file", file);
+                const res = await api.post("/files/upload-image", fd, {
+                  headers: { "Content-Type": "multipart/form-data" },
+                });
+                const url = res.data?.url || res.data?.filename || "";
+                if (!url) {
+                  toast.error("Échec d'upload de l'image");
+                  return;
+                }
+                setImageUrl(url);
+              } catch {
+                toast.error("Échec d'upload de l'image");
+              }
+            }}
+          />
+          <div className="text-xs text-muted-foreground">
+            Formats acceptés : JPG, PNG, WEBP
+          </div>
         </div>
 
         <div className="flex gap-2 pt-2 border-t mt-2">

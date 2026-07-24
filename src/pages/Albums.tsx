@@ -27,10 +27,18 @@ type Album = {
   id: string;
   title: string;
   year: number;
-  artistId: string;
+  artistId?: string;
+  artist?: { id: string; name: string };
   coverUrl?: string;
   description?: string;
-  songs?: { id: string; title: string; audioUrl: string; genreId: string }[];
+  songs?: {
+    id: string;
+    title: string;
+    audioUrl: string;
+    genreId: string;
+    artists?: { id: string; name: string }[];
+    groups?: { id: string; name: string }[];
+  }[];
 };
 
 export default function Albums() {
@@ -346,32 +354,43 @@ export default function Albums() {
                     <th className="p-2">Titre</th>
                     <th className="p-2">Année</th>
                     <th className="p-2">Artist ID</th>
+                    <th className="p-2">Groupe ID</th>
                     <th className="p-2 w-32">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pageItems?.map((a) => (
-                    <tr key={a.id} className="border-b">
-                      <td className="p-2">
-                        <div className="flex items-center gap-2">
-                          {a.coverUrl ? (
-                            <img
-                              src={
-                                a.coverUrl.startsWith("http")
-                                  ? a.coverUrl
-                                  : `${(api.defaults.baseURL || "").replace(/\/+$/, "")}${a.coverUrl}`
-                              }
-                              alt=""
-                              className="h-8 w-8 rounded object-cover border"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded border bg-muted/60" />
-                          )}
-                          <span>{a.title}</span>
-                        </div>
-                      </td>
-                      <td className="p-2">{a.year}</td>
-                      <td className="p-2">{a.artistId}</td>
+                  {pageItems?.map((a) => {
+                    const songGroups =
+                      a.songs && a.songs.length && a.songs[0].groups
+                        ? a.songs[0].groups
+                        : [];
+                    return (
+                      <tr key={a.id} className="border-b">
+                        <td className="p-2">
+                          <div className="flex items-center gap-2">
+                            {a.coverUrl ? (
+                              <img
+                                src={
+                                  a.coverUrl.startsWith("http")
+                                    ? a.coverUrl
+                                    : `${(api.defaults.baseURL || "").replace(/\/+$/, "")}${a.coverUrl}`
+                                }
+                                alt=""
+                                className="h-8 w-8 rounded object-cover border"
+                              />
+                            ) : (
+                              <div className="h-8 w-8 rounded border bg-muted/60" />
+                            )}
+                            <span>{a.title}</span>
+                          </div>
+                        </td>
+                        <td className="p-2">{a.year}</td>
+                        <td className="p-2">{a.artistId || "—"}</td>
+                        <td className="p-2">
+                          {songGroups.length > 0
+                            ? songGroups.map((g) => g.name || g.id).join(", ")
+                            : "—"}
+                        </td>
                       <td className="p-2">
                         <div className="flex gap-2">
                           {canUpdate && (
@@ -393,7 +412,8 @@ export default function Albums() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               <div className="flex items-center justify-between mt-4">

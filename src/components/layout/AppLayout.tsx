@@ -134,7 +134,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <img
               src={logoSrc}
               alt="PyramidPlay Logo"
-              className="h-7 w-auto block transition-all"
+              className="h-8 w-auto block transition-all"
             />
           ) : (
             <img
@@ -323,7 +323,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-6 md:p-8 bg-muted/10 overflow-x-hidden">
+        <main className="flex-1 p-6 md:p-8 bg-slate-100/80 dark:bg-muted/10 overflow-x-hidden">
           {children}
         </main>
       </div>

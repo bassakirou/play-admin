@@ -51,16 +51,24 @@ export default function Songs() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Song | null>(null);
 
-  const schema = z.object({
-    title: z.string().min(1, "Le titre est requis"),
-    duration: z.coerce.number().int().positive(),
-    audioUrl: z.string().min(1, "Un fichier audio est requis"),
-    artistIds: z.array(z.string().uuid()).min(1, "Au moins un artiste est requis"),
-    groupIds: z.array(z.string().uuid()).optional(),
-    coverUrl: z.string().min(1, "La couverture est obligatoire pour un single"),
-    genreIds: z.array(z.string().uuid()).min(1, "Au moins un genre est requis"),
-    releaseDate: z.string().optional(),
-  });
+  const schema = z
+    .object({
+      title: z.string().min(1, "Le titre est requis"),
+      duration: z.coerce.number().int().positive(),
+      audioUrl: z.string().min(1, "Un fichier audio est requis"),
+      artistIds: z.array(z.string().uuid()).optional().default([]),
+      groupIds: z.array(z.string().uuid()).optional().default([]),
+      coverUrl: z.string().min(1, "La couverture est obligatoire pour un single"),
+      genreIds: z.array(z.string().uuid()).min(1, "Au moins un genre est requis"),
+      releaseDate: z.string().optional(),
+    })
+    .refine(
+      (data) => (data.artistIds && data.artistIds.length > 0) || (data.groupIds && data.groupIds.length > 0),
+      {
+        message: "Au moins un artiste ou un groupe d'artistes est requis",
+        path: ["artistIds"],
+      }
+    );
   type FormValues = z.infer<typeof schema>;
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as any,
@@ -427,13 +435,16 @@ export default function Songs() {
                   value={form.watch("artistIds") || []}
                   onChange={(vals) => {
                     form.setValue("artistIds", vals);
-                    if (vals.length > 0) form.clearErrors("artistIds");
+                    const currentGroups = form.getValues("groupIds") || [];
+                    if (vals.length > 0 || currentGroups.length > 0) {
+                      form.clearErrors("artistIds");
+                    }
                   }}
                   placeholder="Sélectionner des artistes..."
                 />
                 {form.formState.errors.artistIds && (
                   <p className="text-xs text-destructive">
-                    Au moins un artiste est requis
+                    {form.formState.errors.artistIds.message as string}
                   </p>
                 )}
               </div>
@@ -451,7 +462,13 @@ export default function Songs() {
                 <MultiSelect
                   options={groupOptions}
                   value={form.watch("groupIds") || []}
-                  onChange={(vals) => form.setValue("groupIds", vals)}
+                  onChange={(vals) => {
+                    form.setValue("groupIds", vals);
+                    const currentArtists = form.getValues("artistIds") || [];
+                    if (vals.length > 0 || currentArtists.length > 0) {
+                      form.clearErrors("artistIds");
+                    }
+                  }}
                   placeholder="Sélectionner des groupes..."
                 />
               </div>

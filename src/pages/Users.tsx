@@ -108,12 +108,18 @@ export default function Users() {
     setEmail(u.email);
     setName(u.name || "");
     setRole(u.role?.name ?? u.role);
+    setPassword("");
     setShowForm(true);
   };
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editing) {
-      saveMutation.mutate({ email, name, role: role.toUpperCase() });
+      saveMutation.mutate({
+        email,
+        name,
+        role: role.toUpperCase(),
+        ...(password.trim() ? { password: password.trim() } : {}),
+      });
     } else {
       saveMutation.mutate({
         email,
@@ -254,17 +260,27 @@ export default function Users() {
                   required
                 />
               </div>
-              {!editing && (
-                <div className="space-y-2">
-                  <Label>Mot de passe</Label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>
+                  Mot de passe{" "}
+                  {editing && (
+                    <span className="text-[11px] text-muted-foreground font-normal">
+                      (facultatif)
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  type="password"
+                  placeholder={
+                    editing
+                      ? "Laisser vide pour ne pas changer"
+                      : "Entrez un mot de passe"
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required={!editing}
+                />
+              </div>
               <div className="space-y-2">
                 <Label>Rôle</Label>
                 <Select

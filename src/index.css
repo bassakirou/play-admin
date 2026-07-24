@@ -89,3 +89,10 @@
 .animate-spin-slow {
   animation: spin-slow 12s linear infinite;
 }
+
+.admin-main-bg {
+  background-color: #f1f5f9 !important;
+}
+.dark .admin-main-bg {
+  background-color: hsl(213 60% 10%) !important;
+}

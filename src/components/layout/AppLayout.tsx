@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ThemeToggle } from "../ThemeToggle";
 import { Button } from "../ui/button";
@@ -21,6 +21,29 @@ import { cn } from "../../lib/utils";
 import { canAccess, RBACResource } from "../../auth/rbac";
 import { UserMenuPopover } from "./UserMenuPopover";
 import { QuickCreateMenu } from "./QuickCreateMenu";
+
+function useAdminTheme() {
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains("dark")
+  );
+
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    };
+    updateTheme();
+
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+}
 
 type NavSection = {
   title?: string;
@@ -63,8 +86,13 @@ const navSections: NavSection[] = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, permissions } = useAuth();
   const location = useLocation();
+  const isDark = useAdminTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const logoSrc = isDark
+    ? "/assets/pyramid-play-white.svg"
+    : "/assets/pyramid-play.svg";
 
   const hasAnyPermission = (resource: string | null) => {
     if (!resource) return true;
@@ -103,18 +131,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Brand Header */}
         <div className="flex h-16 items-center justify-center px-4 border-b">
           {!sidebarCollapsed ? (
-            <div className="flex items-center gap-2">
-              <img
-                src="/assets/pyramid-play-white.svg"
-                alt="PyramidPlay Logo"
-                className="h-7 w-auto dark:block hidden"
-              />
-              <img
-                src="/assets/pyramid-play.svg"
-                alt="PyramidPlay Logo"
-                className="h-7 w-auto dark:hidden block"
-              />
-            </div>
+            <img
+              src={logoSrc}
+              alt="PyramidPlay Logo"
+              className="h-7 w-auto block transition-all"
+            />
           ) : (
             <img
               src="/assets/play-icone.png"
@@ -200,18 +221,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <aside className="relative w-[280px] h-full border-r bg-card p-4 shadow-2xl flex flex-col justify-between animate-in slide-in-from-left">
             <div>
               <div className="flex items-center justify-between pb-4 border-b mb-4">
-                <div className="flex items-center gap-2">
-                  <img
-                    src="/assets/pyramid-play-white.svg"
-                    alt="PyramidPlay Logo"
-                    className="h-7 w-auto dark:block hidden"
-                  />
-                  <img
-                    src="/assets/pyramid-play.svg"
-                    alt="PyramidPlay Logo"
-                    className="h-7 w-auto dark:hidden block"
-                  />
-                </div>
+                <img
+                  src={logoSrc}
+                  alt="PyramidPlay Logo"
+                  className="h-7 w-auto block transition-all"
+                />
                 <Button
                   variant="ghost"
                   size="icon"

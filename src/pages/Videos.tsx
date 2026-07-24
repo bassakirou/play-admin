@@ -54,7 +54,7 @@ export default function Videos() {
     category: z.string().optional(),
     tagsInput: z.string().optional(),
     duration: z.coerce.number().int().positive(),
-    thumbnailUrl: z.string().url().optional().or(z.literal("")),
+    thumbnailUrl: z.string().optional().or(z.literal("")),
     videoUrl: z.string().min(1),
     isPublished: z.boolean().optional(),
     playlistIds: z.array(z.string().uuid()).optional(),

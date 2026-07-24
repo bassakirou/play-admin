@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Hls from "hls.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
@@ -161,6 +162,8 @@ export default function Songs() {
     return `${base}${u}`;
   };
 
+  const hlsRef = useRef<Hls | null>(null);
+
   const togglePlay = (s: Song) => {
     const src = resolveAudioUrl(s.audioUrl);
     if (!src) return;
@@ -168,7 +171,20 @@ export default function Songs() {
       player.pause();
       return;
     }
-    if (player.src !== src) {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+    if (src.includes(".m3u8")) {
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(player);
+        hlsRef.current = hls;
+      } else if (player.canPlayType("application/vnd.apple.mpegurl")) {
+        player.src = src;
+      }
+    } else if (player.src !== src) {
       player.src = src;
     }
     setCurrentId(s.id);

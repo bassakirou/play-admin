@@ -473,7 +473,7 @@ export default function Albums() {
                 placeholder="Description (optionnel)"
                 {...form.register("description")}
               />
-              <div className="flex gap-2 sm:col-span-2">
+              <div className="flex justify-end gap-2 sm:col-span-2 pt-3 border-t mt-4 sticky bottom-0 bg-card z-10 -mx-6 -mb-6 p-4 px-6">
                 <Button type="submit" disabled={saveMutation.isPending}>
                   {editing ? "Mettre à jour" : "Créer"}
                 </Button>

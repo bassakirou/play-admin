@@ -441,7 +441,7 @@ export default function Songs() {
                     form.setValue("artistIds", vals);
                     if (vals.length > 0) form.clearErrors("artistIds");
                   }}
-                  placeholder="Rechercher un artiste..."
+                  placeholder="Sélectionner des artistes..."
                 />
                 {form.formState.errors.artistIds && (
                   <p className="text-xs text-destructive">
@@ -450,23 +450,22 @@ export default function Songs() {
                 )}
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">
-                  Groupes d'artistes
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Groupes d'artistes</label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline font-medium"
+                    onClick={() => setShowGroupForm(true)}
+                  >
+                    + Créer un groupe
+                  </button>
+                </div>
                 <MultiSelect
                   options={groupOptions}
                   value={form.watch("groupIds") || []}
                   onChange={(vals) => form.setValue("groupIds", vals)}
-                  placeholder="Rechercher un groupe..."
+                  placeholder="Sélectionner des groupes..."
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full mt-1"
-                  onClick={() => setShowGroupForm(true)}
-                >
-                  Créer un groupe
-                </Button>
               </div>
               <div className="sm:col-span-2 space-y-1">
                 <ImageDropzone
@@ -520,7 +519,7 @@ export default function Songs() {
                 </label>
                 <Input type="date" {...form.register("releaseDate")} />
               </div>
-              <div className="flex gap-2 sm:col-span-2 pt-2">
+              <div className="flex justify-end gap-2 sm:col-span-2 pt-3 border-t mt-4 sticky bottom-0 bg-card z-10 -mx-6 -mb-6 p-4 px-6">
                 <Button type="submit" disabled={saveMutation.isPending}>
                   {editing ? "Mettre à jour" : "Créer"}
                 </Button>

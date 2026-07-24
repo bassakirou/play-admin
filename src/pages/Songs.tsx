@@ -161,7 +161,8 @@ export default function Songs() {
       return u;
     }
     const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
-    return `${base}${u}`;
+    const absolute = u.startsWith("/") ? `${base}${u}` : `${base}/${u}`;
+    return `${base}/files/resolved-audio?url=${encodeURIComponent(absolute)}`;
   };
 
   const hlsRef = useRef<Hls | null>(null);

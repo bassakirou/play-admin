@@ -10,7 +10,6 @@ import {
 } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,8 +18,10 @@ import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
 import { Dialog } from "../components/ui/dialog";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { CreateArtistGroupDialog } from "../components/ui/create-artist-group-dialog";
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { ImageDropzone } from "../components/ui/image-dropzone";
+import { MultiSelect } from "../components/ui/multi-select";
 
 type Album = {
   id: string;
@@ -37,6 +38,7 @@ export default function Albums() {
   const { user, permissions } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showForm, setShowForm] = useState(false);
+  const [showGroupForm, setShowGroupForm] = useState(false);
   const [editing, setEditing] = useState<Album | null>(null);
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Album | null>(null);
@@ -47,10 +49,11 @@ export default function Albums() {
   const shouldOpenNew = searchParams.get("new") === "1";
 
   const schema = z.object({
-    title: z.string().min(1),
+    title: z.string().min(1, "Le titre est requis"),
     year: z.coerce.number().int().positive(),
-    artistId: z.string().uuid(),
-    genreId: z.string().uuid(),
+    artistIds: z.array(z.string().uuid()).min(1, "Au moins un artiste est requis"),
+    groupIds: z.array(z.string().uuid()).optional(),
+    genreIds: z.array(z.string().uuid()).min(1, "Au moins un genre est requis"),
     coverUrl: z.string().url().optional().or(z.literal("")),
     description: z.string().optional().or(z.literal("")),
   });
@@ -60,8 +63,9 @@ export default function Albums() {
     defaultValues: {
       title: "",
       year: new Date().getFullYear(),
-      artistId: "",
-      genreId: "",
+      artistIds: [],
+      groupIds: [],
+      genreIds: [],
       coverUrl: "",
       description: "",
     },
@@ -76,6 +80,11 @@ export default function Albums() {
     queryKey: ["artists"],
     queryFn: async () =>
       (await api.get("/artists")).data as { id: string; name: string }[],
+  });
+  const groupsQuery = useQuery({
+    queryKey: ["artist-groups"],
+    queryFn: async () =>
+      (await api.get("/artist-groups")).data as { id: string; name: string }[],
   });
   const genresQuery = useQuery({
     queryKey: ["genres"],
@@ -105,7 +114,6 @@ export default function Albums() {
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ["songs"] });
       qc.invalidateQueries({ queryKey: ["albums"] });
-      // Update local editing state to remove the song
       if (editing && editing.songs) {
         setEditing({
           ...editing,
@@ -149,7 +157,15 @@ export default function Albums() {
 
   const openCreate = () => {
     setEditing(null);
-    form.reset();
+    form.reset({
+      title: "",
+      year: new Date().getFullYear(),
+      artistIds: artistFilterId ? [artistFilterId] : [],
+      groupIds: [],
+      genreIds: [],
+      coverUrl: "",
+      description: "",
+    });
     setShowForm(true);
   };
   const openEdit = (alb: Album) => {
@@ -157,9 +173,10 @@ export default function Albums() {
     form.reset({
       title: alb.title,
       year: alb.year,
-      artistId: alb.artistId,
+      artistIds: alb.artistId ? [alb.artistId] : [],
+      groupIds: [],
+      genreIds: alb.songs && alb.songs.length && alb.songs[0].genreId ? [alb.songs[0].genreId] : [],
       coverUrl: alb.coverUrl || "",
-      genreId: alb.songs && alb.songs.length ? alb.songs[0].genreId : "",
       description: alb.description || "",
     });
     setShowForm(true);
@@ -181,7 +198,7 @@ export default function Albums() {
       const album = await saveMutation.mutateAsync({
         title: values.title,
         year: values.year,
-        artistId: values.artistId,
+        artistId: values.artistIds[0],
         coverUrl: values.coverUrl || undefined,
         description: values.description || undefined,
       });
@@ -199,10 +216,12 @@ export default function Albums() {
           title: f.name.replace(/\.[^/.]+$/, ""),
           duration: d || 0,
           audioUrl,
-          artistIds: [values.artistId],
+          artistIds: values.artistIds,
+          groupIds: values.groupIds,
           isSingle: false,
           albumId: album.id,
-          genreId: values.genreId,
+          genreIds: values.genreIds,
+          genreId: values.genreIds[0],
         });
       }
       qc.invalidateQueries({ queryKey: ["albums"] });
@@ -237,13 +256,6 @@ export default function Albums() {
   const canUpdate = canAccess(roleName, permissions, "update", "album");
   const canDelete = canAccess(roleName, permissions, "delete", "album");
 
-  const artistOptions = [{ value: "", label: "— Choisir un artiste —" }].concat(
-    (artistsQuery.data || []).map((a) => ({ value: a.id, label: a.name })),
-  );
-  const genreOptions = [{ value: "", label: "— Choisir un genre —" }].concat(
-    (genresQuery.data || []).map((g) => ({ value: g.id, label: g.name })),
-  );
-
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingDurations, setPendingDurations] = useState<number[]>([]);
 
@@ -261,8 +273,9 @@ export default function Albums() {
     form.reset({
       title: "",
       year: new Date().getFullYear(),
-      artistId: artistFilterId,
-      genreId: "",
+      artistIds: [artistFilterId],
+      groupIds: [],
+      genreIds: [],
       coverUrl: "",
       description: "",
     });
@@ -407,16 +420,88 @@ export default function Albums() {
               onSubmit={form.handleSubmit(onSubmit as any)}
               className="grid gap-3 sm:grid-cols-2"
             >
-              <div className="sm:col-span-2">
-                <Input placeholder="Titre" {...form.register("title")} />
+              <div className="sm:col-span-2 space-y-1">
+                <Input placeholder="Titre de l'album" {...form.register("title")} />
+                {form.formState.errors.title && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.title.message as string}
+                  </p>
+                )}
               </div>
-              <Input
-                placeholder="Année"
-                type="number"
-                {...form.register("year", { valueAsNumber: true })}
-              />
-              <Select options={artistOptions} {...form.register("artistId")} />
-              <Select options={genreOptions} {...form.register("genreId")} />
+              <div className="space-y-1">
+                <Input
+                  placeholder="Année"
+                  type="number"
+                  {...form.register("year", { valueAsNumber: true })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Input
+                  placeholder="Description (optionnel)"
+                  {...form.register("description")}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Artistes</label>
+                <MultiSelect
+                  options={(artistsQuery.data || []).map((a) => ({
+                    value: a.id,
+                    label: a.name,
+                  }))}
+                  value={form.watch("artistIds") || []}
+                  onChange={(vals) => {
+                    form.setValue("artistIds", vals);
+                    if (vals.length > 0) form.clearErrors("artistIds");
+                  }}
+                  placeholder="Sélectionner des artistes..."
+                />
+                {form.formState.errors.artistIds && (
+                  <p className="text-xs text-destructive">
+                    Au moins un artiste est requis
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Groupes d'artistes</label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline font-medium"
+                    onClick={() => setShowGroupForm(true)}
+                  >
+                    + Créer un groupe
+                  </button>
+                </div>
+                <MultiSelect
+                  options={(groupsQuery.data || []).map((g) => ({
+                    value: g.id,
+                    label: g.name,
+                  }))}
+                  value={form.watch("groupIds") || []}
+                  onChange={(vals) => form.setValue("groupIds", vals)}
+                  placeholder="Sélectionner des groupes..."
+                />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-sm font-medium">Genre(s)</label>
+                <MultiSelect
+                  options={(genresQuery.data || []).map((g) => ({
+                    value: g.id,
+                    label: g.name,
+                  }))}
+                  value={form.watch("genreIds") || []}
+                  onChange={(vals) => {
+                    form.setValue("genreIds", vals);
+                    if (vals.length > 0) form.clearErrors("genreIds");
+                  }}
+                  placeholder="Sélectionner des genres..."
+                />
+                {form.formState.errors.genreIds && (
+                  <p className="text-xs text-destructive">
+                    Au moins un genre est requis
+                  </p>
+                )}
+              </div>
               <div className="sm:col-span-2">
                 <FileDropzone
                   multiple
@@ -469,10 +554,6 @@ export default function Albums() {
                   Formats acceptés : JPG, PNG, WEBP
                 </div>
               </div>
-              <Input
-                placeholder="Description (optionnel)"
-                {...form.register("description")}
-              />
               <div className="flex gap-2 sm:col-span-2 pt-3 border-t mt-4">
                 <Button type="submit" disabled={saveMutation.isPending}>
                   {editing ? "Mettre à jour" : "Créer"}
@@ -491,6 +572,19 @@ export default function Albums() {
               </div>
             </form>
           </Dialog>
+
+          <CreateArtistGroupDialog
+            open={showGroupForm}
+            onOpenChange={setShowGroupForm}
+            artistOptions={(artistsQuery.data || []).map((a) => ({
+              value: a.id,
+              label: a.name,
+            }))}
+            onSuccess={(newGroup) => {
+              const currentGroupIds = form.getValues("groupIds") || [];
+              form.setValue("groupIds", [...currentGroupIds, newGroup.id]);
+            }}
+          />
 
           <ConfirmDialog
             open={!!deleteTarget}

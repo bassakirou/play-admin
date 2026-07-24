@@ -32,7 +32,7 @@ export function Dialog({ open, onOpenChange, title, children, footer, className 
       {/* Modal Card Container */}
       <div
         className={cn(
-          'relative z-10 w-full max-w-2xl my-auto rounded-xl border bg-card text-card-foreground shadow-2xl overflow-hidden',
+          'relative z-10 w-full max-w-2xl my-auto rounded-xl border bg-card text-card-foreground shadow-2xl',
           className
         )}
       >

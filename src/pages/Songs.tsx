@@ -18,6 +18,7 @@ import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
 import { Dialog } from "../components/ui/dialog";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { CreateArtistGroupDialog } from "../components/ui/create-artist-group-dialog";
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { MultiSelect } from "../components/ui/multi-select";
@@ -45,8 +46,6 @@ export default function Songs() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
-  const [groupName, setGroupName] = useState("");
-  const [groupMembers, setGroupMembers] = useState<string[]>([]);
   const [player] = useState<HTMLAudioElement>(() => new Audio());
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -116,18 +115,6 @@ export default function Songs() {
       toast.success(editing ? "Single mis à jour" : "Single créé");
     },
     onError: () => toast.error("Échec de sauvegarde du single"),
-  });
-  const groupMutation = useMutation({
-    mutationFn: async (payload: { name: string; memberIds: string[] }) =>
-      (await api.post("/artist-groups", payload)).data,
-    onSuccess: () => {
-      groupsQuery.refetch();
-      setGroupName("");
-      setGroupMembers([]);
-      setShowGroupForm(false);
-      toast.success("Groupe créé");
-    },
-    onError: () => toast.error("Échec de création du groupe"),
   });
 
   useEffect(() => {
@@ -225,8 +212,6 @@ export default function Songs() {
       genreIds: [],
       releaseDate: "",
     });
-    setGroupName("");
-    setGroupMembers([]);
     setShowForm(true);
   };
   const openEdit = (song: Song) => {
@@ -551,51 +536,15 @@ export default function Songs() {
               </div>
             </form>
           </Dialog>
-          <Dialog
+          <CreateArtistGroupDialog
             open={showGroupForm}
             onOpenChange={setShowGroupForm}
-            title="Nouveau groupe d’artistes"
-          >
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!groupName.trim()) {
-                  toast.error("Nom requis");
-                  return;
-                }
-                groupMutation.mutate({
-                  name: groupName.trim(),
-                  memberIds: groupMembers,
-                });
-              }}
-              className="grid gap-3"
-            >
-              <Input
-                placeholder="Nom du groupe"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                required
-              />
-              <MultiSelect
-                options={artistOptions}
-                value={groupMembers}
-                onChange={setGroupMembers}
-                placeholder="Sélectionner des artistes..."
-              />
-              <div className="flex gap-2">
-                <Button type="submit" disabled={groupMutation.isPending}>
-                  Créer
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowGroupForm(false)}
-                >
-                  Annuler
-                </Button>
-              </div>
-            </form>
-          </Dialog>
+            artistOptions={artistOptions}
+            onSuccess={(newGroup) => {
+              const currentGroupIds = form.getValues("groupIds") || [];
+              form.setValue("groupIds", [...currentGroupIds, newGroup.id]);
+            }}
+          />
 
           <ConfirmDialog
             open={!!deleteTarget}

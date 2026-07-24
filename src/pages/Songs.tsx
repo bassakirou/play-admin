@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { Select } from "../components/ui/select";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,6 +33,7 @@ type Song = {
   groups?: { id: string; name: string }[];
   albumId?: string;
   genreId?: string;
+  genres?: { id: string; name: string }[];
 };
 
 export default function Songs() {
@@ -59,7 +59,7 @@ export default function Songs() {
     artistIds: z.array(z.string().uuid()).min(1, "Au moins un artiste est requis"),
     groupIds: z.array(z.string().uuid()).optional(),
     coverUrl: z.string().min(1, "La couverture est obligatoire pour un single"),
-    genreId: z.string().uuid("Le genre est requis"),
+    genreIds: z.array(z.string().uuid()).min(1, "Au moins un genre est requis"),
     releaseDate: z.string().optional(),
   });
   type FormValues = z.infer<typeof schema>;
@@ -72,7 +72,7 @@ export default function Songs() {
       artistIds: [],
       groupIds: [],
       coverUrl: "",
-      genreId: "",
+      genreIds: [],
       releaseDate: "",
     },
   });
@@ -222,7 +222,7 @@ export default function Songs() {
       artistIds: [],
       groupIds: [],
       coverUrl: "",
-      genreId: "",
+      genreIds: [],
       releaseDate: "",
     });
     setGroupName("");
@@ -231,6 +231,11 @@ export default function Songs() {
   };
   const openEdit = (song: Song) => {
     setEditing(song);
+    const gIds = song.genres && song.genres.length
+      ? song.genres.map((g) => g.id)
+      : song.genreId
+      ? [song.genreId]
+      : [];
     form.reset({
       title: song.title,
       duration: song.duration,
@@ -238,7 +243,7 @@ export default function Songs() {
       artistIds: (song.artists || []).map((a) => a.id),
       groupIds: (song.groups || []).map((g) => g.id),
       coverUrl: song.coverUrl || "",
-      genreId: song.genreId || "",
+      genreIds: gIds,
     });
     setShowForm(true);
   };
@@ -251,7 +256,8 @@ export default function Songs() {
       groupIds: values.groupIds,
       isSingle: true,
       coverUrl: values.coverUrl || undefined,
-      genreId: values.genreId,
+      genreIds: values.genreIds,
+      genreId: values.genreIds[0],
       releaseDate: values.releaseDate,
     });
   };
@@ -285,9 +291,6 @@ export default function Songs() {
     value: g.id,
     label: g.name,
   }));
-  const genreOptions = [{ value: "", label: "— Choisir un genre —" }].concat(
-    (genresQuery.data || []).map((g) => ({ value: g.id, label: g.name })),
-  );
 
   // Debug: log form errors
   useEffect(() => {
@@ -505,11 +508,22 @@ export default function Songs() {
                 )}
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">Genre</label>
-                <Select options={genreOptions} {...form.register("genreId")} />
-                {form.formState.errors.genreId && (
+                <label className="text-sm font-medium">Genre(s)</label>
+                <MultiSelect
+                  options={(genresQuery.data || []).map((g) => ({
+                    value: g.id,
+                    label: g.name,
+                  }))}
+                  value={form.watch("genreIds") || []}
+                  onChange={(vals) => {
+                    form.setValue("genreIds", vals);
+                    if (vals.length > 0) form.clearErrors("genreIds");
+                  }}
+                  placeholder="Sélectionner des genres..."
+                />
+                {form.formState.errors.genreIds && (
                   <p className="text-xs text-destructive">
-                    Le genre est requis
+                    Au moins un genre est requis
                   </p>
                 )}
               </div>

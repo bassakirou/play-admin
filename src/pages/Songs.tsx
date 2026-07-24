@@ -327,7 +327,7 @@ export default function Songs() {
                       <td className="p-2">{s.title}</td>
                       <td className="p-2">{s.duration}</td>
                       <td className="p-2 truncate max-w-[240px]">
-                        {s.audioUrl}
+                        <span className="text-xs" title={s.audioUrl}>{s.audioUrl}</span>
                       </td>
                       <td className="p-2">
                         <div className="flex gap-2">

@@ -18,7 +18,8 @@ export function canAccess(
 ) {
   if (!action || !resource) return true;
   if (roleName === "ADMIN" || roleName === "SUPER_ADMIN") return true;
-  if (permissions && permissions.length > 0) {
+  // 1. Si les permissions sont chargées depuis la DB, la liste DB est la source de vérité absolue
+  if (Array.isArray(permissions)) {
     return permissions.some(
       (p) => p.action === action && p.resource === resource,
     );

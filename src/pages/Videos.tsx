@@ -62,21 +62,23 @@ export default function Videos() {
     playlistIds: z.array(z.string().uuid()).optional(),
   });
   type FormValues = z.infer<typeof schema>;
+  const EMPTY_FORM_VALUES: FormValues = {
+    title: "",
+    description: "",
+    artistIds: [],
+    genreId: "",
+    category: "",
+    tagsInput: "",
+    duration: 0,
+    thumbnailUrl: "",
+    videoUrl: "",
+    isPublished: false,
+    playlistIds: [],
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as any,
-    defaultValues: {
-      title: "",
-      description: "",
-      artistIds: [],
-      genreId: "",
-      category: "",
-      tagsInput: "",
-      duration: 0,
-      thumbnailUrl: "",
-      videoUrl: "",
-      isPublished: false,
-      playlistIds: [],
-    },
+    defaultValues: EMPTY_FORM_VALUES,
   });
 
   const { data, isLoading } = useQuery({
@@ -114,7 +116,7 @@ export default function Videos() {
       setShowForm(false);
       setEditing(null);
       setUploadProgress(null);
-      form.reset();
+      form.reset(EMPTY_FORM_VALUES);
       toast.success(editing ? "Vidéo mise à jour" : "Vidéo créée");
     },
     onError: () => toast.error("Échec de sauvegarde de la vidéo"),
@@ -132,7 +134,7 @@ export default function Videos() {
   const openCreate = () => {
     setEditing(null);
     setUploadProgress(null);
-    form.reset();
+    form.reset(EMPTY_FORM_VALUES);
     setShowForm(true);
   };
 
@@ -471,6 +473,7 @@ export default function Videos() {
               <div className="sm:col-span-2 space-y-2">
                 <label className="text-sm font-medium">Miniature</label>
                 <ImageDropzone
+                  key={editing ? `thumb-${editing.id}` : "thumb-new"}
                   accept="image/jpeg,image/png,image/webp"
                   valueUrl={form.watch("thumbnailUrl") || undefined}
                   onRemoveValueUrl={() => form.setValue("thumbnailUrl", "")}
@@ -487,6 +490,7 @@ export default function Videos() {
               <div className="sm:col-span-2 space-y-2">
                 <label className="text-sm font-medium">Fichier vidéo (MP4)</label>
                 <FileDropzone
+                  key={editing ? `video-${editing.id}` : "video-new"}
                   accept="video/mp4,video/*"
                   onSelected={(file, meta) => {
                     void uploadVideoFile(file, meta);

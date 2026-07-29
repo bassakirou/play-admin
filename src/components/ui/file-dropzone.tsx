@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { cn } from "../../lib/utils";
+import api from "../../lib/api";
 
 type SingleCb = (file: File, meta: { duration: number }) => void;
 type MultiCb = (files: File[], metas: { duration: number }[]) => void;
@@ -34,11 +35,20 @@ export function FileDropzone(props: Props) {
 
   const getEffectiveUrl = (url?: string) => {
     if (!url) return undefined;
-    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("blob:")) {
+    if (url.startsWith("blob:")) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      if ((/localhost:9000|media\.pyramidplay\.cm/.test(url)) && !url.includes("resolved-video")) {
+        const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
+        return `${base}/files/resolved-video?url=${encodeURIComponent(url)}`;
+      }
       return url;
     }
-    // If it's a relative path, resolve it against API base url (if needed)
-    return url;
+    if (url.startsWith("/")) {
+      const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
+      return `${base}${url}`;
+    }
+    const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
+    return `${base}/files/resolved-video?url=${encodeURIComponent('/videos/' + url)}`;
   };
 
   const extractDuration = (file: File) =>

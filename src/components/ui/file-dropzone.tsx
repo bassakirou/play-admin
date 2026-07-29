@@ -29,6 +29,17 @@ export function FileDropzone(props: Props) {
   const [filesState, setFilesState] = useState<
     { file: File; meta: { duration: number } }[]
   >([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const isVideo = props.accept?.includes("video");
+
+  const getEffectiveUrl = (url?: string) => {
+    if (!url) return undefined;
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("blob:")) {
+      return url;
+    }
+    // If it's a relative path, resolve it against API base url (if needed)
+    return url;
+  };
 
   const extractDuration = (file: File) =>
     new Promise<number>((resolve) => {
@@ -47,19 +58,23 @@ export function FileDropzone(props: Props) {
       const arr = Array.from(files);
       const durations = await Promise.all(arr.map(extractDuration));
       const metas = durations.map((d) => ({ duration: d }));
+      const urls = arr.map(f => URL.createObjectURL(f));
       if (props.multiple) {
         const merged = filesState.concat(
           arr.map((f, i) => ({ file: f, meta: metas[i] })),
         );
         setFilesState(merged);
         setNames(merged.map((i) => i.file.name));
+        setPreviews([...previews, ...urls]);
         (props as any).onSelected(
           merged.map((i) => i.file),
           merged.map((i) => i.meta),
         );
       } else if (arr[0]) {
+        if (previews[0]) URL.revokeObjectURL(previews[0]);
         setFilesState([{ file: arr[0], meta: metas[0] }]);
         setNames([arr[0].name]);
+        setPreviews([urls[0]]);
         (props as any).onSelected(arr[0], metas[0]);
       }
     },
@@ -81,7 +96,12 @@ export function FileDropzone(props: Props) {
     // Otherwise remove from local state (newly added files)
     const localIndex = index - initialLen;
     const next = filesState.filter((_, i) => i !== localIndex);
+    const nextPreviews = previews.filter((_, i) => {
+      if (i === localIndex) URL.revokeObjectURL(previews[i]);
+      return i !== localIndex;
+    });
     setFilesState(next);
+    setPreviews(nextPreviews);
     setNames(next.map((i) => i.file.name));
     (props as any).onSelected(
       next.map((i) => i.file),
@@ -136,10 +156,17 @@ export function FileDropzone(props: Props) {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
-                      <span className="text-base flex-shrink-0">♪</span>
+                      {isVideo ? (
+                        <video 
+                          src={getEffectiveUrl((props as any).initialItems?.[idx] || previews[idx - ((props as any).initialItems?.length || 0)])} 
+                          className="h-10 w-16 object-cover rounded bg-black flex-shrink-0"
+                          muted 
+                        />
+                      ) : (
+                        <span className="text-base flex-shrink-0">♪</span>
+                      )}
                       <span className="truncate" title={n || ""}>
-                        {n ||
-                          "Glisser-déposer une musique, ou cliquer pour choisir"}
+                        {n || (isVideo ? "Glisser-déposer une vidéo" : "Glisser-déposer une musique")}
                       </span>
                     </div>
                     {props.multiple && (
@@ -159,9 +186,9 @@ export function FileDropzone(props: Props) {
               ) : (
                 <div className="col-span-full flex items-center justify-center py-8 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <span className="text-2xl">♪</span>
+                    <span className="text-2xl">{isVideo ? "🎬" : "♪"}</span>
                     <span>
-                      Glisser-déposer des musiques, ou cliquer pour choisir
+                      {isVideo ? "Glisser-déposer des vidéos" : "Glisser-déposer des musiques"}, ou cliquer pour choisir
                     </span>
                   </div>
                 </div>
@@ -169,13 +196,22 @@ export function FileDropzone(props: Props) {
             </div>
           ) : (
             <div className="flex items-center justify-center py-4">
-              <div className="flex items-center gap-2 overflow-hidden max-w-full px-4">
-                <span className="text-base flex-shrink-0">♪</span>
-                <span className="truncate">
+              <div className="flex items-center gap-4 overflow-hidden max-w-full px-4 w-full">
+                {isVideo && (names[0] || ((props as any).initialItems && (props as any).initialItems[0])) ? (
+                  <video 
+                    src={getEffectiveUrl(previews[0] || ((props as any).initialItems && (props as any).initialItems[0]))} 
+                    className="h-16 w-24 object-cover rounded bg-black flex-shrink-0 shadow-sm"
+                    controls
+                    muted 
+                  />
+                ) : (
+                  <span className="text-2xl flex-shrink-0">{isVideo ? "🎬" : "♪"}</span>
+                )}
+                <span className="truncate font-medium flex-1">
                   {names[0] ||
                     ((props as any).initialItems && (props as any).initialItems[0]
                       ? (props as any).initialItems[0].split("/").pop()
-                      : "Glisser-déposer une musique, ou cliquer pour choisir")}
+                      : isVideo ? "Glisser-déposer une vidéo, ou cliquer" : "Glisser-déposer une musique, ou cliquer")}
                 </span>
               </div>
             </div>

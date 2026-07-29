@@ -539,8 +539,14 @@ export default function Videos() {
                 />
               </div>
               <div className="flex gap-2 sm:col-span-2 pt-3 border-t mt-4">
-                <Button type="submit" disabled={saveMutation.isPending}>
-                  {editing ? "Mettre à jour" : "Créer"}
+                <Button type="submit" loading={saveMutation.isPending}>
+                  {saveMutation.isPending
+                    ? editing
+                      ? "Mise à jour…"
+                      : "Création…"
+                    : editing
+                    ? "Mettre à jour"
+                    : "Créer"}
                 </Button>
                 <Button
                   type="button"

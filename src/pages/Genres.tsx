@@ -258,9 +258,9 @@ export default function Genres() {
                   >
                     Annuler
                   </Button>
-                  <Button type="submit" disabled={saveMutation.isPending}>
+                  <Button type="submit" loading={saveMutation.isPending}>
                     {saveMutation.isPending
-                      ? "Enregistrement..."
+                      ? "Enregistrement…"
                       : "Enregistrer"}
                   </Button>
                 </div>

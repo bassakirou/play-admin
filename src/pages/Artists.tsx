@@ -575,8 +575,14 @@ export default function Artists() {
               </div>
 
               <div className="flex gap-2 pt-4 sticky bottom-0 bg-background pb-2">
-                <Button type="submit" disabled={saveArtistMutation.isPending}>
-                  {editingArtist ? "Mettre à jour" : "Créer"}
+                <Button type="submit" loading={saveArtistMutation.isPending}>
+                  {saveArtistMutation.isPending
+                    ? editingArtist
+                      ? "Mise à jour…"
+                      : "Création…"
+                    : editingArtist
+                    ? "Mettre à jour"
+                    : "Créer"}
                 </Button>
                 <Button
                   type="button"
@@ -646,11 +652,17 @@ export default function Artists() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  disabled={
+                  loading={
                     groupMutation.isPending || updateGroupMutation.isPending
                   }
                 >
-                  {editingGroup ? "Mettre à jour" : "Créer"}
+                  {groupMutation.isPending || updateGroupMutation.isPending
+                    ? editingGroup
+                      ? "Mise à jour…"
+                      : "Création…"
+                    : editingGroup
+                    ? "Mettre à jour"
+                    : "Créer"}
                 </Button>
                 <Button
                   type="button"

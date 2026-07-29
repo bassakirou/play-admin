@@ -121,9 +121,9 @@ export default function ProfileSettings() {
               </div>
 
               <div className="pt-2">
-                <Button type="submit" disabled={isLoading} className="w-full md:w-auto px-8 gap-2">
-                  <Save className="w-4 h-4" />
-                  {isLoading ? "Enregistrement..." : "Enregistrer les modifications"}
+                <Button type="submit" loading={isLoading} className="w-full md:w-auto px-8 gap-2">
+                  {!isLoading && <Save className="w-4 h-4" />}
+                  {isLoading ? "Enregistrement…" : "Enregistrer les modifications"}
                 </Button>
               </div>
             </form>

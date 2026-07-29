@@ -308,7 +308,9 @@ export default function Roles() {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button type="submit">Enregistrer</Button>
+                <Button type="submit" loading={saveMutation.isPending}>
+                  {saveMutation.isPending ? "Enregistrement…" : "Enregistrer"}
+                </Button>
                 <Button
                   type="button"
                   variant="outline"

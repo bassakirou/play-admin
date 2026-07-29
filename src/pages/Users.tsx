@@ -331,8 +331,14 @@ export default function Users() {
               )}
 
               <div className="flex gap-2 sm:col-span-2">
-                <Button type="submit" disabled={saveMutation.isPending}>
-                  {editing ? "Mettre à jour" : "Créer"}
+                <Button type="submit" loading={saveMutation.isPending}>
+                  {saveMutation.isPending
+                    ? editing
+                      ? "Mise à jour…"
+                      : "Création…"
+                    : editing
+                    ? "Mettre à jour"
+                    : "Créer"}
                 </Button>
                 <Button
                   type="button"

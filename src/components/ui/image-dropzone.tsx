@@ -115,7 +115,9 @@ export function ImageDropzone({
       const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
       return `${base}${url}`;
     }
-    return url;
+    // It's a raw filename
+    const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
+    return `${base}/files/resolved-image?url=${encodeURIComponent('/images/' + url)}`;
   };
 
   const allUrls = multiple

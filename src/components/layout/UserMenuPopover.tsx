@@ -66,7 +66,7 @@ export function UserMenuPopover() {
             <button
               onClick={() => {
                 setOpen(false);
-                navigate("/users");
+                navigate("/profile");
               }}
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-accent transition-colors"
             >

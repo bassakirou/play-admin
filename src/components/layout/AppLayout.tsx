@@ -15,6 +15,7 @@ import {
   Download,
   PanelLeft,
   Sparkles,
+  Activity,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { cn } from "../../lib/utils";
@@ -79,6 +80,7 @@ const navSections: NavSection[] = [
       { to: "/roles", label: "Rôles & Droits", icon: Shield, resource: "role" },
       { to: "/maintenance", label: "Maintenance", icon: BellRing, resource: null },
       { to: "/migration", label: "Migration & Backup", icon: Download, resource: null },
+      { to: "/changelog", label: "Mises à jour", icon: Activity, resource: null },
     ],
   },
 ];
@@ -116,6 +118,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (p.startsWith("/roles")) return "Rôles & Droits d'accès";
     if (p.startsWith("/maintenance")) return "Notifications Maintenance";
     if (p.startsWith("/migration")) return "Migration & Backup";
+    if (p.startsWith("/changelog")) return "Mises à jour (Changelog)";
     return "Administration";
   };
 

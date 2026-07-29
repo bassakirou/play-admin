@@ -15,6 +15,8 @@ import ResetPassword from "./pages/ResetPassword";
 import MaintenanceSubscribers from "./pages/MaintenanceSubscribers";
 import Videos from "./pages/Videos";
 import Migration from "./pages/Migration";
+import ProfileSettings from "./pages/ProfileSettings";
+import Changelog from "./pages/Changelog";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -140,6 +142,26 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <Migration />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/profile",
+    element: (
+      <RootLayout>
+        <Protected>
+          <ProfileSettings />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/changelog",
+    element: (
+      <RootLayout>
+        <Protected>
+          <Changelog />
         </Protected>
       </RootLayout>
     ),

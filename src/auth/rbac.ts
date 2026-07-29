@@ -24,6 +24,13 @@ export function canAccess(
     );
   }
   const matrix: Record<string, Array<[RBACAction, RBACResource]>> = {
+    EDITOR: [
+      ["create", "song"], ["read", "song"], ["update", "song"], ["delete", "song"], ["manage", "song"],
+      ["create", "video"], ["read", "video"], ["update", "video"], ["delete", "video"], ["manage", "video"],
+      ["create", "album"], ["read", "album"], ["update", "album"], ["delete", "album"], ["manage", "album"],
+      ["create", "artist"], ["read", "artist"], ["update", "artist"], ["delete", "artist"], ["manage", "artist"],
+      ["create", "genre"], ["read", "genre"], ["update", "genre"], ["delete", "genre"], ["manage", "genre"],
+    ],
     CREATOR: [
       ["create", "song"],
       ["update", "song"],

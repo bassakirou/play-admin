@@ -256,10 +256,12 @@ export default function Roles() {
                 />
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
-                {["song", "album", "artist", "genre", "user", "role"].map(
+                {["song", "video", "album", "artist", "genre", "user", "role"].map(
                   (res) => (
                     <div key={res} className="border rounded-md p-3">
-                      <div className="font-medium mb-2 capitalize">{res}</div>
+                      <div className="font-medium mb-2 uppercase text-xs tracking-wider text-muted-foreground font-bold">
+                        {res === "song" ? "Song / Musiques" : res === "video" ? "Video / Vidéos" : res}
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         {ALL_PERMISSIONS.filter((p) => p.resource === res).map(
                           (p) => {

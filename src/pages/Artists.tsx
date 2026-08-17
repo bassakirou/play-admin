@@ -210,6 +210,19 @@ export default function Artists() {
     onError: () => toast.error("Échec de suppression"),
   });
 
+  const cleanupStaleMutation = useMutation({
+    mutationFn: async () => (await api.post("/artists/cleanup-stale")).data,
+    onSuccess: (data: { count: number; deleted: any[] }) => {
+      qc.invalidateQueries({ queryKey: ["artists"] });
+      if (data.count > 0) {
+        toast.success(`${data.count} profil(s) artiste(s) orphelin(s) nettoyé(s)`);
+      } else {
+        toast.info("Aucun profil orphelin trouvé");
+      }
+    },
+    onError: () => toast.error("Échec du nettoyage des profils orphelins"),
+  });
+
   const filtered = useMemo(() => {
     const list = artistsQuery.data || [];
     return list.filter((a) =>
@@ -283,6 +296,15 @@ export default function Artists() {
                   }}
                 >
                   Regrouper en groupe
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => cleanupStaleMutation.mutate()}
+                  loading={cleanupStaleMutation.isPending}
+                  title="Nettoyer les profils artistes générés automatiquement pour des utilisateurs sans chanson"
+                >
+                  Nettoyer orphelins
                 </Button>
               </>
             )}

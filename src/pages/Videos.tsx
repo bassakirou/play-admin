@@ -18,6 +18,28 @@ import { Select } from "../components/ui/select";
 import { MultiSelect } from "../components/ui/multi-select";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { FileDropzone } from "../components/ui/file-dropzone";
+import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X } from "lucide-react";
+
+type Channel = {
+  id: string;
+  name: string;
+  bio?: string | null;
+  imageUrl?: string | null;
+  bannerUrl?: string | null;
+  certified?: boolean;
+  userId?: string | null;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role?: { name: string };
+  } | null;
+  _count?: {
+    followers: number;
+  };
+  subscriberCount?: number;
+  videoCount?: number;
+};
 
 type Video = {
   id: string;
@@ -32,39 +54,66 @@ type Video = {
   duration: number;
   views: number;
   isPublished: boolean;
+  userId?: string | null;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    artistProfile?: Channel | null;
+  } | null;
   artists?: { id: string; name: string }[];
   videoPlaylists?: { id: string; name: string }[];
+};
+
+type UserItem = {
+  id: string;
+  name: string;
+  email: string;
+  role?: { name: string };
+  artistProfile?: { id: string; name: string } | null;
 };
 
 export default function Videos() {
   const qc = useQueryClient();
   const { user, permissions } = useAuth();
   const [search, setSearch] = useState("");
+  const [selectedChannelFilter, setSelectedChannelFilter] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  // Video modal states
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Video | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Video | null>(null);
 
-  const schema = z.object({
-    title: z.string().min(1),
+  // Channels modal states
+  const [showChannelsModal, setShowChannelsModal] = useState(false);
+  const [channelSearch, setChannelSearch] = useState("");
+  const [showChannelForm, setShowChannelForm] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
+
+  // Video Form Schema
+  const videoSchema = z.object({
+    title: z.string().min(1, "Le titre est requis"),
     description: z.string().optional(),
-    artistIds: z.array(z.string().uuid()).min(1),
-    genreId: z.string().uuid(),
+    channelId: z.string().min(1, "La chaîne de publication est requise"),
+    artistIds: z.array(z.string()).optional(),
+    genreId: z.string().uuid("Le genre est requis"),
     category: z.string().optional(),
     tagsInput: z.string().optional(),
-    duration: z.coerce.number().int().positive(),
+    duration: z.coerce.number().int().positive("La durée doit être supérieure à 0"),
     thumbnailUrl: z.string().optional().or(z.literal("")),
-    videoUrl: z.string().min(1),
+    videoUrl: z.string().min(1, "Le fichier vidéo est requis"),
     isPublished: z.boolean().optional(),
-    playlistIds: z.array(z.string().uuid()).optional(),
+    playlistIds: z.array(z.string()).optional(),
   });
-  type FormValues = z.infer<typeof schema>;
-  const EMPTY_FORM_VALUES: FormValues = {
+  type VideoFormValues = z.infer<typeof videoSchema>;
+
+  const EMPTY_VIDEO_FORM: VideoFormValues = {
     title: "",
     description: "",
+    channelId: "",
     artistIds: [],
     genreId: "",
     category: "",
@@ -72,24 +121,58 @@ export default function Videos() {
     duration: 0,
     thumbnailUrl: "",
     videoUrl: "",
-    isPublished: false,
+    isPublished: true,
     playlistIds: [],
   };
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema) as any,
-    defaultValues: EMPTY_FORM_VALUES,
+  const form = useForm<VideoFormValues>({
+    resolver: zodResolver(videoSchema) as any,
+    defaultValues: EMPTY_VIDEO_FORM,
   });
 
-  const { data, isLoading } = useQuery({
+  // Channel Form Schema
+  const channelSchema = z.object({
+    userId: z.string().min(1, "L'utilisateur est requis"),
+    name: z.string().min(1, "Le nom de la chaîne est requis"),
+    bio: z.string().optional(),
+    imageUrl: z.string().optional().or(z.literal("")),
+    bannerUrl: z.string().optional().or(z.literal("")),
+    certified: z.boolean().optional(),
+  });
+  type ChannelFormValues = z.infer<typeof channelSchema>;
+
+  const channelForm = useForm<ChannelFormValues>({
+    resolver: zodResolver(channelSchema) as any,
+    defaultValues: {
+      userId: "",
+      name: "",
+      bio: "",
+      imageUrl: "",
+      bannerUrl: "",
+      certified: false,
+    },
+  });
+
+  // Queries
+  const { data: videosData, isLoading: videosLoading } = useQuery({
     queryKey: ["videos"],
     queryFn: async () => (await api.get("/videos/admin")).data as Video[],
+  });
+
+  const channelsQuery = useQuery({
+    queryKey: ["channels-all"],
+    queryFn: async () => (await api.get("/artists/channels")).data as Channel[],
   });
 
   const artistsQuery = useQuery({
     queryKey: ["artists-all"],
     queryFn: async () =>
-      (await api.get("/artists")).data as { id: string; name: string }[],
+      (await api.get("/artists?type=catalog")).data as { id: string; name: string }[],
+  });
+
+  const usersQuery = useQuery({
+    queryKey: ["users-all"],
+    queryFn: async () => (await api.get("/users")).data as UserItem[],
   });
 
   const genresQuery = useQuery({
@@ -104,7 +187,8 @@ export default function Videos() {
       (await api.get("/video-playlists")).data as { id: string; name: string }[],
   });
 
-  const saveMutation = useMutation({
+  // Mutations
+  const saveVideoMutation = useMutation({
     mutationFn: async (payload: Record<string, any>) => {
       if (editing) {
         return (await api.patch(`/videos/${editing.id}`, payload)).data;
@@ -113,32 +197,59 @@ export default function Videos() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["videos"] });
+      qc.invalidateQueries({ queryKey: ["channels-all"] });
       setShowForm(false);
       setEditing(null);
       setUploadProgress(null);
-      form.reset(EMPTY_FORM_VALUES);
+      form.reset(EMPTY_VIDEO_FORM);
       toast.success(editing ? "Vidéo mise à jour" : "Vidéo créée");
     },
     onError: () => toast.error("Échec de sauvegarde de la vidéo"),
   });
 
-  const deleteMutation = useMutation({
+  const deleteVideoMutation = useMutation({
     mutationFn: async (id: string) => (await api.delete(`/videos/${id}`)).data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["videos"] });
+      qc.invalidateQueries({ queryKey: ["channels-all"] });
       toast.success("Vidéo supprimée");
     },
     onError: () => toast.error("Échec de suppression"),
   });
 
-  const openCreate = () => {
+  const saveChannelMutation = useMutation({
+    mutationFn: async (values: ChannelFormValues) => {
+      if (editingChannel) {
+        return (await api.patch(`/artists/${editingChannel.id}`, values)).data;
+      }
+      return (await api.post("/artists/channels", values)).data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["channels-all"] });
+      qc.invalidateQueries({ queryKey: ["videos"] });
+      setShowChannelForm(false);
+      setEditingChannel(null);
+      channelForm.reset();
+      toast.success(editingChannel ? "Chaîne mise à jour" : "Chaîne créée");
+    },
+    onError: () => toast.error("Échec de sauvegarde de la chaîne"),
+  });
+
+  // Video Handlers
+  const openCreateVideo = () => {
     setEditing(null);
     setUploadProgress(null);
-    form.reset(EMPTY_FORM_VALUES);
+    const channels = channelsQuery.data || [];
+    // Default to first channel or matching user channel
+    const defaultChannel = channels.find((c) => c.userId === user?.id) || channels[0];
+    form.reset({
+      ...EMPTY_VIDEO_FORM,
+      channelId: defaultChannel?.id || "",
+    });
     setShowForm(true);
   };
 
-  const openEdit = (v: Video) => {
+  const openEditVideo = (v: Video) => {
     setEditing(v);
     setUploadProgress(null);
     let tagsInput = "";
@@ -153,9 +264,15 @@ export default function Videos() {
         tagsInput = v.tags;
       }
     }
+
+    const currentChannel = (channelsQuery.data || []).find(
+      (c) => c.userId === v.userId || (v.user?.artistProfile && c.id === v.user.artistProfile.id)
+    );
+
     form.reset({
       title: v.title,
       description: v.description || "",
+      channelId: currentChannel?.id || v.user?.artistProfile?.id || "",
       artistIds: (v.artists || []).map((a) => a.id),
       genreId: v.genre?.id || v.genreId || "",
       category: v.category || "",
@@ -169,16 +286,17 @@ export default function Videos() {
     setShowForm(true);
   };
 
-  const onSubmit = (values: FormValues) => {
+  const onVideoSubmit = (values: VideoFormValues) => {
     const tags = (values.tagsInput || "")
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
-    saveMutation.mutate({
+
+    saveVideoMutation.mutate({
       title: values.title,
       description: values.description || undefined,
-      artistId: values.artistIds[0],
-      artistIds: values.artistIds,
+      channelId: values.channelId,
+      artistIds: values.artistIds || [],
       genreId: values.genreId,
       category: values.category || undefined,
       tags,
@@ -190,9 +308,41 @@ export default function Videos() {
     });
   };
 
-  const uploadThumbnail = async (file: File | null) => {
+  // Channel Handlers
+  const openCreateChannel = () => {
+    setEditingChannel(null);
+    channelForm.reset({
+      userId: (usersQuery.data || [])[0]?.id || "",
+      name: "",
+      bio: "",
+      imageUrl: "",
+      bannerUrl: "",
+      certified: false,
+    });
+    setShowChannelForm(true);
+  };
+
+  const openEditChannel = (channel: Channel) => {
+    setEditingChannel(channel);
+    channelForm.reset({
+      userId: channel.userId || "",
+      name: channel.name,
+      bio: channel.bio || "",
+      imageUrl: channel.imageUrl || "",
+      bannerUrl: channel.bannerUrl || "",
+      certified: !!channel.certified,
+    });
+    setShowChannelForm(true);
+  };
+
+  const onChannelSubmit = (values: ChannelFormValues) => {
+    saveChannelMutation.mutate(values);
+  };
+
+  // Upload Helpers
+  const uploadImage = async (file: File | null, field: "thumbnailUrl" | "imageUrl" | "bannerUrl", formInstance: any) => {
     if (!file) {
-      form.setValue("thumbnailUrl", "");
+      formInstance.setValue(field, "");
       return;
     }
     try {
@@ -203,13 +353,13 @@ export default function Videos() {
       });
       const url = res.data?.url || res.data?.filename || "";
       if (!url) {
-        toast.error("Échec d'upload de la miniature");
+        toast.error("Échec d'upload de l'image");
         return;
       }
-      form.setValue("thumbnailUrl", url);
-      form.clearErrors("thumbnailUrl");
+      formInstance.setValue(field, url);
+      formInstance.clearErrors(field);
     } catch {
-      toast.error("Échec d'upload de la miniature");
+      toast.error("Échec d'upload de l'image");
     }
   };
 
@@ -246,34 +396,67 @@ export default function Videos() {
     }
   };
 
-  const filtered = useMemo(() => {
+  // Filters & Pagination
+  const filteredVideos = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = data || [];
+    let list = videosData || [];
+
+    if (selectedChannelFilter) {
+      list = list.filter((v) => {
+        const chanId = v.user?.artistProfile?.id;
+        const userId = v.userId;
+        return chanId === selectedChannelFilter || userId === selectedChannelFilter;
+      });
+    }
+
     if (!q) return list;
     return list.filter((v) => {
       const titleMatch = v.title.toLowerCase().includes(q);
+      const channelMatch =
+        (v.user?.artistProfile?.name || v.user?.name || "").toLowerCase().includes(q);
       const artistMatch = (v.artists || []).some((a) =>
         a.name.toLowerCase().includes(q),
       );
-      return titleMatch || artistMatch;
+      return titleMatch || channelMatch || artistMatch;
     });
-  }, [data, search]);
+  }, [videosData, search, selectedChannelFilter]);
 
-  const totalPages = Math.max(1, Math.ceil((filtered?.length || 0) / pageSize));
+  const filteredChannels = useMemo(() => {
+    const q = channelSearch.trim().toLowerCase();
+    const list = channelsQuery.data || [];
+    if (!q) return list;
+    return list.filter((c) => {
+      const nameMatch = c.name.toLowerCase().includes(q);
+      const userMatch = (c.user?.name || c.user?.email || "").toLowerCase().includes(q);
+      return nameMatch || userMatch;
+    });
+  }, [channelsQuery.data, channelSearch]);
+
+  const totalPages = Math.max(1, Math.ceil((filteredVideos?.length || 0) / pageSize));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [totalPages, page]);
 
   const pageItems = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, page]);
+    return filteredVideos.slice(start, start + pageSize);
+  }, [filteredVideos, page]);
 
   const roleName =
     typeof user?.role === "string" ? user?.role : (user as any)?.role?.name;
   const canCreate = canAccess(roleName, permissions, "create", "video");
   const canUpdate = canAccess(roleName, permissions, "update", "video");
   const canDelete = canAccess(roleName, permissions, "delete", "video");
+
+  // Options for dropdowns
+  const channelOptions = [
+    { value: "", label: "— Sélectionner une chaîne —" },
+  ].concat(
+    (channelsQuery.data || []).map((c) => ({
+      value: c.id,
+      label: `${c.name} (${c.user?.name || c.user?.email || "Créateur"})`,
+    }))
+  );
 
   const artistOptions = (artistsQuery.data || []).map((a) => ({
     value: a.id,
@@ -289,102 +472,196 @@ export default function Videos() {
     label: p.name,
   }));
 
+  const userOptions = [{ value: "", label: "— Choisir un utilisateur —" }].concat(
+    (usersQuery.data || []).map((u) => ({
+      value: u.id,
+      label: `${u.name || "Sans nom"} (${u.email}) [${u.role?.name || "USER"}]`,
+    }))
+  );
+
   return (
-    <div className="p-6">
+    <div className="p-6 space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Vidéos</CardTitle>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Rechercher un titre ou un artiste…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-56"
-            />
-            {canCreate && <Button onClick={openCreate}>Nouveau</Button>}
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <Film className="w-6 h-6 text-primary" />
+              Gestion des Vidéos
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Gérez les vidéos publiées par les différentes chaînes créateurs
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+              <Input
+                placeholder="Titre, chaîne ou artiste…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-56 pl-8"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowChannelsModal(true)}
+              className="flex items-center gap-2 border-primary/30 hover:border-primary text-primary"
+            >
+              <Tv className="w-4 h-4" />
+              <span>Chaînes</span>
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-xs bg-primary/10 text-primary font-bold">
+                {channelsQuery.data?.length ?? 0}
+              </span>
+            </Button>
+            {canCreate && (
+              <Button onClick={openCreateVideo} className="flex items-center gap-1">
+                <Plus className="w-4 h-4" />
+                Nouveau
+              </Button>
+            )}
           </div>
         </CardHeader>
+
         <CardContent>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Chargement…</p>
+          {selectedChannelFilter && (
+            <div className="mb-4 flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-lg text-sm w-fit">
+              <span>
+                Filtré par chaîne :{" "}
+                <strong>
+                  {channelsQuery.data?.find((c) => c.id === selectedChannelFilter || c.userId === selectedChannelFilter)?.name || selectedChannelFilter}
+                </strong>
+              </span>
+              <button
+                onClick={() => setSelectedChannelFilter(null)}
+                className="hover:bg-primary/20 p-0.5 rounded transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {videosLoading ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">Chargement des vidéos…</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left bg-muted">
+                <thead className="text-left bg-muted/60 text-muted-foreground uppercase text-xs">
                   <tr>
-                    <th className="p-2">Titre</th>
-                    <th className="p-2">Artistes</th>
-                    <th className="p-2">Catégorie</th>
-                    <th className="p-2">Durée (s)</th>
-                    <th className="p-2">Vues</th>
-                    <th className="p-2">Statut</th>
-                    <th className="p-2 w-32">Actions</th>
+                    <th className="p-3 rounded-l-md">Titre</th>
+                    <th className="p-3">Chaîne (Uploader)</th>
+                    <th className="p-3">Artistes Associés</th>
+                    <th className="p-3">Catégorie</th>
+                    <th className="p-3">Durée</th>
+                    <th className="p-3">Vues</th>
+                    <th className="p-3">Statut</th>
+                    <th className="p-3 text-right rounded-r-md">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border/40">
                   {pageItems.length === 0 ? (
-                    <tr className="border-b">
+                    <tr>
                       <td
-                        className="p-2 text-sm text-muted-foreground"
-                        colSpan={7}
+                        className="p-8 text-center text-sm text-muted-foreground"
+                        colSpan={8}
                       >
-                        Aucune vidéo
+                        Aucune vidéo trouvée
                       </td>
                     </tr>
                   ) : (
-                    pageItems.map((v) => (
-                      <tr key={v.id} className="border-b">
-                        <td className="p-2">{v.title}</td>
-                        <td className="p-2">
-                          {(v.artists || []).map((a) => a.name).join(", ") ||
-                            "—"}
-                        </td>
-                        <td className="p-2">{v.category || "—"}</td>
-                        <td className="p-2">{v.duration}</td>
-                        <td className="p-2">{v.views}</td>
-                        <td className="p-2">
-                          <span
-                            className={
-                              v.isPublished
-                                ? "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-700"
-                                : "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-700"
-                            }
-                          >
-                            {v.isPublished ? "Publié" : "Brouillon"}
-                          </span>
-                        </td>
-                        <td className="p-2">
-                          <div className="flex gap-2">
-                            {canUpdate && (
-                              <Button
-                                variant="outline"
-                                onClick={() => openEdit(v)}
-                              >
-                                Éditer
-                              </Button>
-                            )}
-                            {canDelete && (
-                              <Button
-                                variant="destructive"
-                                onClick={() => setDeleteTarget(v)}
-                              >
-                                Suppr.
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    pageItems.map((v) => {
+                      const channel = v.user?.artistProfile;
+                      const channelName = channel?.name || v.user?.name || "Chaîne";
+                      const channelAvatar = channel?.imageUrl || "https://placehold.co/100x100?text=C";
+
+                      return (
+                        <tr key={v.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-3 font-medium">
+                            <div className="flex items-center gap-3">
+                              {v.thumbnailUrl ? (
+                                <img
+                                  src={v.thumbnailUrl}
+                                  alt={v.title}
+                                  className="w-12 h-8 rounded object-cover flex-shrink-0 bg-muted"
+                                />
+                              ) : (
+                                <div className="w-12 h-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
+                                  <VideoIcon className="w-4 h-4" />
+                                </div>
+                              )}
+                              <span className="line-clamp-1 max-w-[220px]" title={v.title}>
+                                {v.title}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={channelAvatar}
+                                alt={channelName}
+                                className="w-6 h-6 rounded-full object-cover border border-border flex-shrink-0"
+                              />
+                              <span className="font-medium text-foreground line-clamp-1">
+                                {channelName}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-muted-foreground">
+                            {(v.artists || []).map((a) => a.name).join(", ") || "—"}
+                          </td>
+                          <td className="p-3 text-muted-foreground">{v.category || "—"}</td>
+                          <td className="p-3 text-muted-foreground">{v.duration}s</td>
+                          <td className="p-3 text-muted-foreground font-mono">{v.views}</td>
+                          <td className="p-3">
+                            <span
+                              className={
+                                v.isPublished
+                                  ? "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                                  : "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                              }
+                            >
+                              {v.isPublished ? "Publié" : "Brouillon"}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {canUpdate && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openEditVideo(v)}
+                                  className="h-8 px-2.5"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 mr-1" />
+                                  Éditer
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => setDeleteTarget(v)}
+                                  className="h-8 px-2.5"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
-              <div className="flex items-center justify-between mt-4">
+
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
                 <div className="text-xs text-muted-foreground">
-                  Page {page} / {totalPages}
+                  Affichage page {page} sur {totalPages} ({filteredVideos.length} vidéos au total)
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
@@ -392,6 +669,7 @@ export default function Videos() {
                   </Button>
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                   >
@@ -401,185 +679,414 @@ export default function Videos() {
               </div>
             </div>
           )}
-
-          <Dialog
-            open={showForm}
-            onOpenChange={setShowForm}
-            title={editing ? "Modifier une vidéo" : "Nouvelle vidéo"}
-          >
-            <form
-              onSubmit={form.handleSubmit(onSubmit as any)}
-              className="grid gap-3 sm:grid-cols-2"
-            >
-              <div className="sm:col-span-2 space-y-1">
-                <Input placeholder="Titre" {...form.register("title")} />
-                {form.formState.errors.title && (
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.title.message}
-                  </p>
-                )}
-              </div>
-              <div className="sm:col-span-2 space-y-1">
-                <Textarea
-                  placeholder="Description"
-                  {...form.register("description")}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Artistes</label>
-                <MultiSelect
-                  options={artistOptions}
-                  value={form.watch("artistIds")}
-                  onChange={(vals) => {
-                    form.setValue("artistIds", vals);
-                    if (vals.length > 0) form.clearErrors("artistIds");
-                  }}
-                  placeholder="Rechercher un artiste..."
-                />
-                {form.formState.errors.artistIds && (
-                  <p className="text-xs text-destructive">
-                    Au moins un artiste est requis
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Genre</label>
-                <Select options={genreOptions} {...form.register("genreId")} />
-                {form.formState.errors.genreId && (
-                  <p className="text-xs text-destructive">Le genre est requis</p>
-                )}
-              </div>
-              <div className="space-y-1">
-                <Input placeholder="Catégorie" {...form.register("category")} />
-              </div>
-              <div className="space-y-1">
-                <Input
-                  placeholder="Tags (séparés par des virgules)"
-                  {...form.register("tagsInput")}
-                />
-              </div>
-              <div className="space-y-1">
-                <Input
-                  type="number"
-                  placeholder="Durée (s)"
-                  {...form.register("duration")}
-                />
-                {form.formState.errors.duration && (
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.duration.message}
-                  </p>
-                )}
-              </div>
-              <div className="sm:col-span-2 space-y-2">
-                <label className="text-sm font-medium">Miniature</label>
-                <ImageDropzone
-                  key={editing ? `thumb-${editing.id}` : "thumb-new"}
-                  accept="image/jpeg,image/png,image/webp"
-                  valueUrl={form.watch("thumbnailUrl") || undefined}
-                  onRemoveValueUrl={() => form.setValue("thumbnailUrl", "")}
-                  onSelected={(file) => {
-                    void uploadThumbnail(file);
-                  }}
-                />
-                {form.formState.errors.thumbnailUrl && (
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.thumbnailUrl.message as string}
-                  </p>
-                )}
-              </div>
-              <div className="sm:col-span-2 space-y-2">
-                <label className="text-sm font-medium">Fichier vidéo (MP4)</label>
-                <FileDropzone
-                  key={editing ? `video-${editing.id}` : "video-new"}
-                  accept="video/mp4,video/*"
-                  onSelected={(file, meta) => {
-                    void uploadVideoFile(file, meta);
-                  }}
-                  initialItems={
-                    form.watch("videoUrl")
-                      ? [form.watch("videoUrl") as string]
-                      : undefined
-                  }
-                />
-                {uploadProgress !== null && (
-                  <div className="space-y-1">
-                    <div className="h-2 w-full rounded bg-muted">
-                      <div
-                        className="h-2 rounded bg-primary transition-all duration-200"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Upload {uploadProgress}%
-                    </div>
-                  </div>
-                )}
-                {form.formState.errors.videoUrl && (
-                  <p className="text-xs text-destructive">
-                    Un fichier vidéo est requis
-                  </p>
-                )}
-              </div>
-              <div className="sm:col-span-2 flex items-center gap-2">
-                <Checkbox
-                  checked={!!form.watch("isPublished")}
-                  onCheckedChange={(checked) =>
-                    form.setValue("isPublished", checked)
-                  }
-                />
-                <span className="text-sm">Publié</span>
-              </div>
-              <div className="sm:col-span-2 space-y-1">
-                <label className="text-sm font-medium">Playlists vidéo</label>
-                <MultiSelect
-                  options={playlistOptions}
-                  value={form.watch("playlistIds") || []}
-                  onChange={(vals) => form.setValue("playlistIds", vals)}
-                  placeholder="Rechercher une playlist..."
-                />
-              </div>
-              <div className="flex gap-2 sm:col-span-2 pt-3 border-t mt-4">
-                <Button type="submit" loading={saveMutation.isPending}>
-                  {saveMutation.isPending
-                    ? editing
-                      ? "Mise à jour…"
-                      : "Création…"
-                    : editing
-                    ? "Mettre à jour"
-                    : "Créer"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditing(null);
-                    setUploadProgress(null);
-                    form.reset();
-                  }}
-                >
-                  Annuler
-                </Button>
-              </div>
-            </form>
-          </Dialog>
-
-          <ConfirmDialog
-            open={!!deleteTarget}
-            onOpenChange={(open) => !open && setDeleteTarget(null)}
-            title={`Supprimer la vidéo "${deleteTarget?.title}" ?`}
-            description="Voulez-vous vraiment supprimer cette vidéo ? Cette action est irréversible."
-            loading={deleteMutation.isPending}
-            onConfirm={() => {
-              if (deleteTarget) {
-                deleteMutation.mutate(deleteTarget.id, {
-                  onSettled: () => setDeleteTarget(null),
-                });
-              }
-            }}
-          />
         </CardContent>
       </Card>
+
+      {/* ========================================================================= */}
+      {/* DIALOG 1 : GESTION DES CHAÎNES VIDÉO                                      */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={showChannelsModal}
+        onOpenChange={setShowChannelsModal}
+        title="Gestion des Chaînes de Publication Vidéo"
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher une chaîne ou utilisateur…"
+                value={channelSearch}
+                onChange={(e) => setChannelSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            {canCreate && (
+              <Button onClick={openCreateChannel} size="sm" className="w-full sm:w-auto flex items-center gap-1.5">
+                <Plus className="w-4 h-4" />
+                Nouvelle Chaîne
+              </Button>
+            )}
+          </div>
+
+          {channelsQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Chargement des chaînes…</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left bg-muted/60 text-muted-foreground text-xs uppercase">
+                  <tr>
+                    <th className="p-2.5 rounded-l-md">Chaîne</th>
+                    <th className="p-2.5">Propriétaire</th>
+                    <th className="p-2.5">Vidéos</th>
+                    <th className="p-2.5">Abonnés</th>
+                    <th className="p-2.5">Certifié</th>
+                    <th className="p-2.5 text-right rounded-r-md">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {filteredChannels.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
+                        Aucune chaîne trouvée
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredChannels.map((c) => (
+                      <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={c.imageUrl || "https://placehold.co/100x100?text=C"}
+                              alt={c.name}
+                              className="w-8 h-8 rounded-full object-cover border border-border flex-shrink-0"
+                            />
+                            <div>
+                              <div className="font-semibold text-foreground">{c.name}</div>
+                              {c.bio && (
+                                <div className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
+                                  {c.bio}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-2.5 text-xs">
+                          <div className="font-medium text-foreground">{c.user?.name || "Sans nom"}</div>
+                          <div className="text-muted-foreground">{c.user?.email}</div>
+                          {c.user?.role?.name && (
+                            <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[10px] bg-muted font-bold">
+                              {c.user.role.name}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-2.5 font-mono text-center">{c.videoCount ?? 0}</td>
+                        <td className="p-2.5 font-mono text-center">{c.subscriberCount ?? c._count?.followers ?? 0}</td>
+                        <td className="p-2.5">
+                          {c.certified ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                              <CheckCircle className="w-3.5 h-3.5" /> Oui
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Non</span>
+                          )}
+                        </td>
+                        <td className="p-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedChannelFilter(c.id);
+                                setShowChannelsModal(false);
+                              }}
+                              className="h-7 px-2 text-xs"
+                              title="Voir les vidéos de cette chaîne"
+                            >
+                              Vidéos
+                            </Button>
+                            {canUpdate && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditChannel(c)}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <Pencil className="w-3 h-3 mr-1" />
+                                Éditer
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* DIALOG 2 : CRÉATION / ÉDITION D'UNE CHAÎNE                                */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={showChannelForm}
+        onOpenChange={setShowChannelForm}
+        title={editingChannel ? `Modifier la chaîne "${editingChannel.name}"` : "Créer une chaîne créateur"}
+      >
+        <form onSubmit={channelForm.handleSubmit(onChannelSubmit as any)} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Utilisateur Propriétaire</label>
+            <Select
+              options={userOptions}
+              disabled={!!editingChannel}
+              {...channelForm.register("userId")}
+            />
+            {channelForm.formState.errors.userId && (
+              <p className="text-xs text-destructive">{channelForm.formState.errors.userId.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Nom de la chaîne</label>
+            <Input placeholder="Ex: Pyramid Studio, Bassahak Live..." {...channelForm.register("name")} />
+            {channelForm.formState.errors.name && (
+              <p className="text-xs text-destructive">{channelForm.formState.errors.name.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Description / Bio</label>
+            <Textarea placeholder="Description publique de la chaîne..." {...channelForm.register("bio")} />
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Avatar de la chaîne</label>
+              <ImageDropzone
+                key={editingChannel ? `chan-img-${editingChannel.id}` : "chan-img-new"}
+                accept="image/jpeg,image/png,image/webp"
+                valueUrl={channelForm.watch("imageUrl") || undefined}
+                onRemoveValueUrl={() => channelForm.setValue("imageUrl", "")}
+                onSelected={(file) => {
+                  void uploadImage(file, "imageUrl", channelForm);
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Bannière de la chaîne</label>
+              <ImageDropzone
+                key={editingChannel ? `chan-banner-${editingChannel.id}` : "chan-banner-new"}
+                accept="image/jpeg,image/png,image/webp"
+                valueUrl={channelForm.watch("bannerUrl") || undefined}
+                onRemoveValueUrl={() => channelForm.setValue("bannerUrl", "")}
+                onSelected={(file) => {
+                  void uploadImage(file, "bannerUrl", channelForm);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              checked={!!channelForm.watch("certified")}
+              onCheckedChange={(checked) => channelForm.setValue("certified", checked)}
+            />
+            <span className="text-sm font-medium">Chaîne Certifiée (Badge officiel)</span>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowChannelForm(false)}
+            >
+              Annuler
+            </Button>
+            <Button type="submit" loading={saveChannelMutation.isPending}>
+              {saveChannelMutation.isPending ? "Sauvegarde…" : editingChannel ? "Mettre à jour" : "Créer la chaîne"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* DIALOG 3 : CRÉATION / ÉDITION D'UNE VIDÉO                                  */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        title={editing ? "Modifier la vidéo" : "Nouvelle Vidéo"}
+      >
+        <form
+          onSubmit={form.handleSubmit(onVideoSubmit as any)}
+          className="grid gap-3 sm:grid-cols-2 max-h-[75vh] overflow-y-auto pr-1"
+        >
+          <div className="sm:col-span-2 space-y-1">
+            <label className="text-sm font-medium">Titre de la vidéo</label>
+            <Input placeholder="Titre attractif..." {...form.register("title")} />
+            {form.formState.errors.title && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.title.message}
+              </p>
+            )}
+          </div>
+
+          <div className="sm:col-span-2 space-y-1">
+            <label className="text-sm font-medium">Chaîne de publication (Uploader)</label>
+            <Select options={channelOptions} {...form.register("channelId")} />
+            {form.formState.errors.channelId && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.channelId.message}
+              </p>
+            )}
+          </div>
+
+          <div className="sm:col-span-2 space-y-1">
+            <label className="text-sm font-medium">Description</label>
+            <Textarea
+              placeholder="Description détaillée de la vidéo..."
+              {...form.register("description")}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Artistes associés / Feat. (Optionnel)</label>
+            <MultiSelect
+              options={artistOptions}
+              value={form.watch("artistIds") || []}
+              onChange={(vals) => {
+                form.setValue("artistIds", vals);
+              }}
+              placeholder="Sélectionner des artistes musicaux..."
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Genre musical / Thème</label>
+            <Select options={genreOptions} {...form.register("genreId")} />
+            {form.formState.errors.genreId && (
+              <p className="text-xs text-destructive">{form.formState.errors.genreId.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Catégorie</label>
+            <Input placeholder="Ex: Clip, Live, Interview, Vlog..." {...form.register("category")} />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Tags</label>
+            <Input
+              placeholder="Tags séparés par des virgules (ex: afrobeats, 2026, clip)"
+              {...form.register("tagsInput")}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Durée (en secondes)</label>
+            <Input
+              type="number"
+              placeholder="Durée calculée automatiquement ou saisie"
+              {...form.register("duration")}
+            />
+            {form.formState.errors.duration && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.duration.message}
+              </p>
+            )}
+          </div>
+
+          <div className="sm:col-span-2 space-y-2">
+            <label className="text-sm font-medium">Miniature (Image de couverture)</label>
+            <ImageDropzone
+              key={editing ? `thumb-${editing.id}` : "thumb-new"}
+              accept="image/jpeg,image/png,image/webp"
+              valueUrl={form.watch("thumbnailUrl") || undefined}
+              onRemoveValueUrl={() => form.setValue("thumbnailUrl", "")}
+              onSelected={(file) => {
+                void uploadImage(file, "thumbnailUrl", form);
+              }}
+            />
+          </div>
+
+          <div className="sm:col-span-2 space-y-2">
+            <label className="text-sm font-medium">Fichier vidéo (MP4)</label>
+            <FileDropzone
+              key={editing ? `video-${editing.id}` : "video-new"}
+              accept="video/mp4,video/*"
+              onSelected={(file, meta) => {
+                void uploadVideoFile(file, meta);
+              }}
+              initialItems={
+                form.watch("videoUrl")
+                  ? [form.watch("videoUrl") as string]
+                  : undefined
+              }
+            />
+            {uploadProgress !== null && (
+              <div className="space-y-1">
+                <div className="h-2 w-full rounded bg-muted overflow-hidden">
+                  <div
+                    className="h-2 rounded bg-primary transition-all duration-200"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  Progression de l'upload : {uploadProgress}%
+                </div>
+              </div>
+            )}
+            {form.formState.errors.videoUrl && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.videoUrl.message}
+              </p>
+            )}
+          </div>
+
+          <div className="sm:col-span-2 space-y-1">
+            <label className="text-sm font-medium">Playlists vidéo (Optionnel)</label>
+            <MultiSelect
+              options={playlistOptions}
+              value={form.watch("playlistIds") || []}
+              onChange={(vals) => form.setValue("playlistIds", vals)}
+              placeholder="Ajouter à des playlists..."
+            />
+          </div>
+
+          <div className="sm:col-span-2 flex items-center gap-2 pt-2">
+            <Checkbox
+              checked={!!form.watch("isPublished")}
+              onCheckedChange={(checked) =>
+                form.setValue("isPublished", checked)
+              }
+            />
+            <span className="text-sm font-medium">Publier immédiatement la vidéo</span>
+          </div>
+
+          <div className="flex gap-2 sm:col-span-2 pt-3 border-t mt-4">
+            <Button type="submit" loading={saveVideoMutation.isPending}>
+              {saveVideoMutation.isPending
+                ? editing
+                  ? "Mise à jour…"
+                  : "Création…"
+                : editing
+                ? "Mettre à jour"
+                : "Créer la vidéo"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowForm(false);
+                setEditing(null);
+                setUploadProgress(null);
+                form.reset(EMPTY_VIDEO_FORM);
+              }}
+            >
+              Annuler
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Confirmation Suppression */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Supprimer la vidéo "${deleteTarget?.title}" ?`}
+        description="Voulez-vous vraiment supprimer cette vidéo ? Cette action est irréversible."
+        loading={deleteVideoMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) {
+            deleteVideoMutation.mutate(deleteTarget.id, {
+              onSettled: () => setDeleteTarget(null),
+            });
+          }
+        }}
+      />
     </div>
   );
 }

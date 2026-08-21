@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Music, Library, Video, UserPlus, ChevronDown } from "lucide-react";
+import { Plus, Music, Library, Video, UserPlus, ChevronDown, BookHeadphones } from "lucide-react";
 
 export function QuickCreateMenu() {
   const navigate = useNavigate();
@@ -52,6 +52,16 @@ export function QuickCreateMenu() {
           >
             <Library className="h-4 w-4 text-indigo-500" />
             <span>Nouvel Album</span>
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              navigate("/audiobooks");
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-accent transition-colors"
+          >
+            <BookHeadphones className="h-4 w-4 text-amber-500" />
+            <span>Nouveau Livre Audio</span>
           </button>
           <button
             onClick={() => {

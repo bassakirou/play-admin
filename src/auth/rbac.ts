@@ -3,6 +3,7 @@ export type RBACResource =
   | "song"
   | "video"
   | "album"
+  | "audiobook"
   | "user"
   | "role"
   | "genre"
@@ -29,6 +30,7 @@ export function canAccess(
       ["create", "song"], ["read", "song"], ["update", "song"], ["delete", "song"], ["manage", "song"],
       ["create", "video"], ["read", "video"], ["update", "video"], ["delete", "video"], ["manage", "video"],
       ["create", "album"], ["read", "album"], ["update", "album"], ["delete", "album"], ["manage", "album"],
+      ["create", "audiobook"], ["read", "audiobook"], ["update", "audiobook"], ["delete", "audiobook"], ["manage", "audiobook"],
       ["create", "artist"], ["read", "artist"], ["update", "artist"], ["delete", "artist"], ["manage", "artist"],
       ["create", "genre"], ["read", "genre"], ["update", "genre"], ["delete", "genre"], ["manage", "genre"],
     ],
@@ -40,12 +42,14 @@ export function canAccess(
       ["update", "video"],
       ["read", "video"],
       ["read", "album"],
+      ["read", "audiobook"],
     ],
     LABEL: [
       ["manage", "artist"],
       ["create", "album"],
       ["update", "album"],
       ["read", "album"],
+      ["read", "audiobook"],
       ["create", "video"],
       ["update", "video"],
       ["read", "video"],
@@ -56,6 +60,7 @@ export function canAccess(
       ["read", "song"],
       ["read", "video"],
       ["read", "album"],
+      ["read", "audiobook"],
       ["read", "genre"],
     ],
   };
@@ -67,6 +72,7 @@ export const ALL_PERMISSIONS: Permission[] = [
   "song",
   "video",
   "album",
+  "audiobook",
   "artist",
   "genre",
   "user",

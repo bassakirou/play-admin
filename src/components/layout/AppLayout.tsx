@@ -16,6 +16,7 @@ import {
   PanelLeft,
   Sparkles,
   Activity,
+  BookHeadphones,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { cn } from "../../lib/utils";
@@ -68,6 +69,7 @@ const navSections: NavSection[] = [
     items: [
       { to: "/songs", label: "Singles", icon: Music, resource: "song" },
       { to: "/albums", label: "Albums", icon: Library, resource: "album" },
+      { to: "/audiobooks", label: "Livres Audio", icon: BookHeadphones, resource: "audiobook" },
       { to: "/videos", label: "Vidéos", icon: Video, resource: "video" },
       { to: "/genres", label: "Genres", icon: Tag, resource: "genre" },
       { to: "/artists", label: "Artistes", icon: Users, resource: "artist" },
@@ -111,6 +113,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (p === "/") return "Tableau de bord";
     if (p.startsWith("/songs")) return "Singles & Morceaux";
     if (p.startsWith("/albums")) return "Albums";
+    if (p.startsWith("/audiobooks")) return "Livres Audio";
     if (p.startsWith("/videos")) return "Vidéos";
     if (p.startsWith("/genres")) return "Genres";
     if (p.startsWith("/artists")) return "Artistes & Groupes";

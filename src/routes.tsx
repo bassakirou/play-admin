@@ -17,6 +17,7 @@ import Videos from "./pages/Videos";
 import Migration from "./pages/Migration";
 import ProfileSettings from "./pages/ProfileSettings";
 import Changelog from "./pages/Changelog";
+import Audiobooks from "./pages/Audiobooks";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -72,6 +73,16 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <Albums />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/audiobooks",
+    element: (
+      <RootLayout>
+        <Protected>
+          <Audiobooks />
         </Protected>
       </RootLayout>
     ),

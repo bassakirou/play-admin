@@ -22,6 +22,8 @@ import { CreateArtistGroupDialog } from "../components/ui/create-artist-group-di
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { MultiSelect } from "../components/ui/multi-select";
+import { HelpCircle } from "lucide-react";
+import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 
 type Song = {
   id: string;
@@ -42,6 +44,7 @@ export default function Songs() {
   const { user, permissions } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [showGroupForm, setShowGroupForm] = useState(false);
+  const [showMediaGuide, setShowMediaGuide] = useState(false);
   const [editing, setEditing] = useState<Song | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -298,6 +301,14 @@ export default function Songs() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Singles</CardTitle>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowMediaGuide(true)}
+              className="gap-1.5"
+            >
+              <HelpCircle className="w-4 h-4 text-muted-foreground" />
+              <span className="hidden sm:inline">Guide des formats</span>
+            </Button>
             <Input
               placeholder="Rechercher un single…"
               value={search}
@@ -582,6 +593,11 @@ export default function Songs() {
                 });
               }
             }}
+          />
+
+          <MediaSpecificationsDialog
+            open={showMediaGuide}
+            onOpenChange={setShowMediaGuide}
           />
         </CardContent>
       </Card>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { LogOut, User, Settings, Bell, ChevronsUpDown, ShieldCheck } from "lucide-react";
+import { LogOut, User, Settings, Bell, ChevronsUpDown, ShieldCheck, FileText } from "lucide-react";
 
 export function UserMenuPopover() {
   const { user, logout } = useAuth();
@@ -92,6 +92,16 @@ export function UserMenuPopover() {
             >
               <Bell className="h-4 w-4 text-muted-foreground" />
               <span>Notifications & Maintenance</span>
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                navigate("/media-specifications");
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium hover:bg-accent transition-colors"
+            >
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span>Guide & Formats Médias</span>
             </button>
           </div>
 

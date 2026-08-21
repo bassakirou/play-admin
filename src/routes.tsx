@@ -18,6 +18,7 @@ import Migration from "./pages/Migration";
 import ProfileSettings from "./pages/ProfileSettings";
 import Changelog from "./pages/Changelog";
 import Audiobooks from "./pages/Audiobooks";
+import MediaSpecifications from "./pages/MediaSpecifications";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -173,6 +174,16 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <Changelog />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/media-specifications",
+    element: (
+      <RootLayout>
+        <Protected>
+          <MediaSpecifications />
         </Protected>
       </RootLayout>
     ),

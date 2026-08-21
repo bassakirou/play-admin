@@ -18,7 +18,8 @@ import { Select } from "../components/ui/select";
 import { MultiSelect } from "../components/ui/multi-select";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { FileDropzone } from "../components/ui/file-dropzone";
-import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X } from "lucide-react";
+import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X, HelpCircle } from "lucide-react";
+import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 
 type Channel = {
   id: string;
@@ -83,6 +84,7 @@ export default function Videos() {
 
   // Video modal states
   const [showForm, setShowForm] = useState(false);
+  const [showMediaGuide, setShowMediaGuide] = useState(false);
   const [editing, setEditing] = useState<Video | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Video | null>(null);
@@ -502,6 +504,14 @@ export default function Videos() {
                 className="w-56 pl-8"
               />
             </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowMediaGuide(true)}
+              className="flex items-center gap-1.5"
+            >
+              <HelpCircle className="w-4 h-4 text-muted-foreground" />
+              <span className="hidden sm:inline">Guide formats</span>
+            </Button>
             <Button
               variant="outline"
               onClick={() => setShowChannelsModal(true)}
@@ -1086,6 +1096,11 @@ export default function Videos() {
             });
           }
         }}
+      />
+
+      <MediaSpecificationsDialog
+        open={showMediaGuide}
+        onOpenChange={setShowMediaGuide}
       />
     </div>
   );

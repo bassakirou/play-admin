@@ -122,6 +122,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (p.startsWith("/maintenance")) return "Notifications Maintenance";
     if (p.startsWith("/migration")) return "Migration & Backup";
     if (p.startsWith("/changelog")) return "Mises à jour (Changelog)";
+    if (p.startsWith("/media-specifications")) return "Guide & Spécifications Médias";
     return "Administration";
   };
 

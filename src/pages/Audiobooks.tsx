@@ -33,7 +33,9 @@ import {
   Layers,
   Flame,
   BookOpen,
+  HelpCircle,
 } from "lucide-react";
+import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 
 type AudiobookChapter = {
   id: string;
@@ -99,6 +101,7 @@ export default function Audiobooks() {
 
   // Modals state
   const [showForm, setShowForm] = useState(false);
+  const [showMediaGuide, setShowMediaGuide] = useState(false);
   const [editingBook, setEditingBook] = useState<Audiobook | null>(null);
   const [managingChaptersBook, setManagingChaptersBook] = useState<Audiobook | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Audiobook | null>(null);
@@ -467,12 +470,23 @@ export default function Audiobooks() {
           </p>
         </div>
 
-        {canCreate && (
-          <Button onClick={handleOpenCreate} className="gap-2 shrink-0">
-            <Plus className="w-4 h-4" />
-            Nouveau Livre Audio
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowMediaGuide(true)}
+            className="gap-1.5"
+          >
+            <HelpCircle className="w-4 h-4 text-muted-foreground" />
+            <span>Guide des formats</span>
           </Button>
-        )}
+
+          {canCreate && (
+            <Button onClick={handleOpenCreate} className="gap-2 shrink-0">
+              <Plus className="w-4 h-4" />
+              Nouveau Livre Audio
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters & Search Bar */}
@@ -1004,6 +1018,11 @@ export default function Audiobooks() {
         description={`Êtes-vous sûr de vouloir supprimer définitivement "${deleteTarget?.title}" et l'ensemble de ses chapitres ? Cette action est irréversible.`}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
+      />
+
+      <MediaSpecificationsDialog
+        open={showMediaGuide}
+        onOpenChange={setShowMediaGuide}
       />
     </div>
   );

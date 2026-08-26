@@ -20,6 +20,7 @@ import { ImageDropzone } from "../components/ui/image-dropzone";
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X, HelpCircle } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
+import { VideoQualityVariants, type VideoSourceAnalysis, type QualityTier } from "@pyramidplay/ui";
 
 type Channel = {
   id: string;
@@ -88,6 +89,11 @@ export default function Videos() {
   const [editing, setEditing] = useState<Video | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Video | null>(null);
+  const [sourceAnalysis, setSourceAnalysis] = useState<VideoSourceAnalysis | null>(null);
+  const [rawSourceUrl, setRawSourceUrl] = useState<string>("");
+  const [qualityVariants, setQualityVariants] = useState<Partial<Record<QualityTier, string>>>({});
+  const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
+  const [generatingQuality, setGeneratingQuality] = useState<QualityTier | "all" | null>(null);
 
   // Channels modal states
   const [showChannelsModal, setShowChannelsModal] = useState(false);
@@ -241,6 +247,9 @@ export default function Videos() {
   const openCreateVideo = () => {
     setEditing(null);
     setUploadProgress(null);
+    setSourceAnalysis(null);
+    setRawSourceUrl("");
+    setQualityVariants({});
     const channels = channelsQuery.data || [];
     // Default to first channel or matching user channel
     const defaultChannel = channels.find((c) => c.userId === user?.id) || channels[0];
@@ -254,6 +263,10 @@ export default function Videos() {
   const openEditVideo = (v: Video) => {
     setEditing(v);
     setUploadProgress(null);
+    setRawSourceUrl(v.videoUrl || "");
+    setQualityVariants({});
+    setSourceAnalysis(null);
+
     let tagsInput = "";
     if (Array.isArray(v.tags)) {
       tagsInput = v.tags.filter(Boolean).join(", ");
@@ -385,16 +398,87 @@ export default function Videos() {
         setUploadProgress(null);
         return;
       }
+      const rawUrl = res.data?.rawUrl || url;
+      setRawSourceUrl(rawUrl);
       form.setValue("videoUrl", url);
       form.clearErrors("videoUrl");
-      if (meta?.duration && meta.duration > 0) {
+
+      if (res.data?.analysis) {
+        setSourceAnalysis(res.data.analysis);
+        if (res.data.analysis.duration > 0) {
+          form.setValue("duration", res.data.analysis.duration);
+          form.clearErrors("duration");
+        }
+      } else if (meta?.duration && meta.duration > 0) {
         form.setValue("duration", meta.duration);
         form.clearErrors("duration");
       }
       setUploadProgress(100);
+      toast.success("Vidéo source uploadée. Vous pouvez générer les variantes de qualité HLS.");
     } catch {
       setUploadProgress(null);
       toast.error("Échec d'upload de la vidéo");
+    }
+  };
+
+  const handleGenerateAllVariants = async () => {
+    const targetUrl = rawSourceUrl || form.watch("videoUrl");
+    if (!targetUrl) {
+      toast.error("Veuillez d'abord téléverser une vidéo source");
+      return;
+    }
+    setIsGeneratingVariants(true);
+    setGeneratingQuality("all");
+    try {
+      const res = await api.post("/files/generate-video-variants", {
+        url: targetUrl,
+      });
+      const data = res.data;
+      if (data?.masterUrl) {
+        form.setValue("videoUrl", data.masterUrl);
+        form.clearErrors("videoUrl");
+      }
+      if (data?.variants) {
+        setQualityVariants(data.variants);
+      }
+      if (data?.analysis) {
+        setSourceAnalysis(data.analysis);
+      }
+      toast.success("Variantes de qualité générées avec succès (Flux HLS)");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Échec de la génération des variantes");
+    } finally {
+      setIsGeneratingVariants(false);
+      setGeneratingQuality(null);
+    }
+  };
+
+  const handleGenerateSingleVariant = async (quality: QualityTier) => {
+    const targetUrl = rawSourceUrl || form.watch("videoUrl");
+    if (!targetUrl) {
+      toast.error("Veuillez d'abord téléverser une vidéo source");
+      return;
+    }
+    setIsGeneratingVariants(true);
+    setGeneratingQuality(quality);
+    try {
+      const res = await api.post("/files/generate-video-variants", {
+        url: targetUrl,
+        targetQualities: [quality],
+      });
+      const data = res.data;
+      if (data?.variants?.[quality]) {
+        setQualityVariants((prev) => ({ ...prev, [quality]: data.variants[quality] }));
+      }
+      if (data?.masterUrl) {
+        form.setValue("videoUrl", data.masterUrl);
+      }
+      toast.success(`Variante ${quality} générée avec succès`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || `Échec de génération de la variante ${quality}`);
+    } finally {
+      setIsGeneratingVariants(false);
+      setGeneratingQuality(null);
     }
   };
 
@@ -633,26 +717,27 @@ export default function Videos() {
                             </span>
                           </td>
                           <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                               {canUpdate && (
                                 <Button
                                   variant="outline"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => openEditVideo(v)}
-                                  className="h-8 px-2.5"
+                                  className="h-8 w-8 hover:border-amber-400 hover:text-amber-400"
+                                  title="Éditer la vidéo"
                                 >
-                                  <Pencil className="w-3.5 h-3.5 mr-1" />
-                                  Éditer
+                                  <Pencil className="w-4 h-4" />
                                 </Button>
                               )}
                               {canDelete && (
                                 <Button
                                   variant="destructive"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => setDeleteTarget(v)}
-                                  className="h-8 px-2.5"
+                                  className="h-8 w-8"
+                                  title="Supprimer la vidéo"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               )}
                             </div>
@@ -699,6 +784,7 @@ export default function Videos() {
         open={showChannelsModal}
         onOpenChange={setShowChannelsModal}
         title="Gestion des Chaînes de Publication Vidéo"
+        className="max-w-3xl"
       >
         <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b">
@@ -798,12 +884,12 @@ export default function Videos() {
                             {canUpdate && (
                               <Button
                                 variant="outline"
-                                size="sm"
+                                size="icon"
                                 onClick={() => openEditChannel(c)}
-                                className="h-7 px-2 text-xs"
+                                className="h-7 w-7 hover:border-amber-400 hover:text-amber-400"
+                                title="Éditer la chaîne"
                               >
-                                <Pencil className="w-3 h-3 mr-1" />
-                                Éditer
+                                <Pencil className="w-3.5 h-3.5" />
                               </Button>
                             )}
                           </div>
@@ -1003,7 +1089,7 @@ export default function Videos() {
           </div>
 
           <div className="sm:col-span-2 space-y-2">
-            <label className="text-sm font-medium">Fichier vidéo (MP4)</label>
+            <label className="text-sm font-medium">Fichier vidéo source (MP4 / HLS)</label>
             <FileDropzone
               key={editing ? `video-${editing.id}` : "video-new"}
               accept="video/mp4,video/*"
@@ -1034,6 +1120,28 @@ export default function Videos() {
                 {form.formState.errors.videoUrl.message}
               </p>
             )}
+          </div>
+
+          {/* Variantes de Qualité Vidéo (1080p, 720p, 480p, 360p) */}
+          <div className="sm:col-span-2 pt-2 border-t mt-2">
+            <VideoQualityVariants
+              sourceUrl={rawSourceUrl || form.watch("videoUrl")}
+              analysis={sourceAnalysis}
+              variants={qualityVariants}
+              onVariantsChange={(v) => {
+                setQualityVariants(v);
+              }}
+              onGenerateAll={handleGenerateAllVariants}
+              onGenerateSingle={handleGenerateSingleVariant}
+              onRemoveSource={() => {
+                form.setValue("videoUrl", "");
+                setRawSourceUrl("");
+                setSourceAnalysis(null);
+                setQualityVariants({});
+              }}
+              isGenerating={isGeneratingVariants}
+              generatingQuality={generatingQuality}
+            />
           </div>
 
           <div className="sm:col-span-2 space-y-1">

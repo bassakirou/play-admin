@@ -13,12 +13,15 @@ import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { ALL_PERMISSIONS, canAccess } from "../auth/rbac";
+import { Pencil, Trash2 } from "lucide-react";
 
 type Role = {
   id: string;
   name: string;
   permissions: any;
 };
+
+const SYSTEM_ROLES = ["ADMIN", "SUPER_ADMIN", "USER", "ARTIST", "AUTHOR", "CREATOR"];
 
 export default function Roles() {
   const qc = useQueryClient();
@@ -39,15 +42,11 @@ export default function Roles() {
   const permQuery = useQuery({
     queryKey: ["permissions"],
     queryFn: async () =>
-      (await api.get("/permissions")).data as {
-        id: string;
-        action: string;
-        resource: string;
-      }[],
+      (await api.get("/permissions")).data as any[],
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: Partial<Role>) => {
+    mutationFn: async (payload: { name: string; permissions: string[] }) => {
       if (editing)
         return (await api.patch(`/roles/${editing.id}`, payload)).data;
       return (await api.post("/roles", payload)).data;
@@ -60,16 +59,17 @@ export default function Roles() {
       setPermissions("");
       toast.success(editing ? "Rôle mis à jour" : "Rôle créé");
     },
-    onError: () => toast.error("Échec de sauvegarde du rôle"),
+    onError: (err: any) => toast.error(err?.response?.data?.message || "Échec d'enregistrement du rôle"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => (await api.delete(`/roles/${id}`)).data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["roles"] });
+      setDeleteTarget(null);
       toast.success("Rôle supprimé");
     },
-    onError: () => toast.error("Échec de suppression"),
+    onError: (err: any) => toast.error(err?.response?.data?.message || "Échec de suppression du rôle"),
   });
 
   const openCreate = () => {
@@ -81,51 +81,26 @@ export default function Roles() {
   const openEdit = (r: Role) => {
     setEditing(r);
     setName(r.name);
-    const perms = Array.isArray(r.permissions)
-      ? r.permissions.map((p: any) => `${p.action}:${p.resource}`)
-      : [];
-    setPermissions(perms.join(","));
+    const pids = (r.permissions as any[])?.map((p) => p.id) || [];
+    setPermissions(pids.join(","));
     setShowForm(true);
   };
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const entries = permissions
-      .split(",")
-      .map((p) => p.trim())
-      .filter(Boolean);
-    const parsed = entries
-      .map((s) => {
-        const [action, resource] = s.split(":");
-        return action && resource ? { action, resource } : null;
-      })
-      .filter(Boolean) as { action: string; resource: string }[];
-
-    // Ensure we use the IDs from the database
-    const dbPerms = (permQuery.data || []) as any[];
-    const ids = parsed
-      .map(
-        (p) =>
-          dbPerms.find(
-            (dp) => dp.action === p.action && dp.resource === p.resource,
-          )?.id,
-      )
-      .filter(Boolean) as string[];
-
-    try {
-      if (editing) {
-        await saveMutation.mutateAsync({
-          permissions: ids.length ? ids : undefined,
-          name,
-        });
-      } else {
-        await saveMutation.mutateAsync({
-          name,
-          permissions: ids.length ? ids : undefined,
-        });
-      }
-    } catch {
-      // handled by saveMutation onError
+    const cleanName = name.trim().toUpperCase();
+    if (!cleanName) {
+      toast.error("Le nom du rôle est obligatoire");
+      return;
     }
+    if (!editing && SYSTEM_ROLES.includes(cleanName)) {
+      toast.error(`"${cleanName}" est un rôle système réservé.`);
+      return;
+    }
+    const pids = permissions
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    saveMutation.mutate({ name: cleanName, permissions: pids });
   };
 
   const filtered = useMemo(() => {
@@ -186,40 +161,64 @@ export default function Roles() {
                   <tr>
                     <th className="p-2">Nom</th>
                     <th className="p-2">Droits</th>
-                    <th className="p-2 w-32">Actions</th>
+                    <th className="p-2 text-right min-w-[100px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pageItems?.map((r) => (
-                    <tr key={r.id} className="border-b">
-                      <td className="p-2">{r.name}</td>
-                      <td className="p-2">
-                        {(Array.isArray(r.permissions) ? r.permissions : [])
-                          .map((p: any) => `${p.action}:${p.resource}`)
-                          .join(", ")}
-                      </td>
-                      <td className="p-2">
-                        <div className="flex gap-2">
-                          {canUpdate && (
-                            <Button
-                              variant="outline"
-                              onClick={() => openEdit(r)}
-                            >
-                              Éditer
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button
-                              variant="destructive"
-                              onClick={() => setDeleteTarget(r)}
-                            >
-                              Suppr.
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {pageItems?.map((r) => {
+                    const isSystem = SYSTEM_ROLES.includes(r.name.toUpperCase());
+                    return (
+                      <tr key={r.id} className="border-b">
+                        <td className="p-2 font-medium">
+                          <div className="flex items-center gap-2">
+                            <span>{r.name}</span>
+                            {isSystem && (
+                              <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold uppercase">
+                                Système
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-2 text-xs text-muted-foreground max-w-xl truncate">
+                          {(Array.isArray(r.permissions) ? r.permissions : [])
+                            .map((p: any) => `${p.action}:${p.resource}`)
+                            .join(", ") || (isSystem ? "Accès standard du rôle système" : "—")}
+                        </td>
+                        <td className="p-2 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                            {isSystem ? (
+                              <span className="text-xs text-muted-foreground italic px-2">Verrouillé</span>
+                            ) : (
+                              <>
+                                {canUpdate && (
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 hover:border-amber-400 hover:text-amber-400"
+                                    onClick={() => openEdit(r)}
+                                    title="Éditer les droits du rôle"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {canDelete && (
+                                  <Button
+                                    variant="destructive"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setDeleteTarget(r)}
+                                    title="Supprimer le rôle"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               <div className="flex items-center justify-between mt-4">

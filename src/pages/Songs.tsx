@@ -22,7 +22,7 @@ import { CreateArtistGroupDialog } from "../components/ui/create-artist-group-di
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { MultiSelect } from "../components/ui/multi-select";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Play, Pause, Pencil, Trash2 } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 
 type Song = {
@@ -329,39 +329,52 @@ export default function Songs() {
                     <th className="p-2">Titre</th>
                     <th className="p-2">Durée (s)</th>
                     <th className="p-2">Audio URL</th>
-                    <th className="p-2 w-32">Actions</th>
+                    <th className="p-2 text-right min-w-[130px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageItems?.map((s) => (
                     <tr key={s.id} className="border-b">
-                      <td className="p-2">{s.title}</td>
+                      <td className="p-2 font-medium">{s.title}</td>
                       <td className="p-2">{s.duration}</td>
                       <td className="p-2 truncate max-w-[240px]">
-                        <span className="text-xs" title={s.audioUrl}>{s.audioUrl}</span>
+                        <span className="text-xs text-muted-foreground" title={s.audioUrl}>{s.audioUrl}</span>
                       </td>
-                      <td className="p-2">
-                        <div className="flex gap-2">
+                      <td className="p-2 text-right">
+                        <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                           <Button
                             variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
                             onClick={() => togglePlay(s)}
+                            title={currentId === s.id && isPlaying ? "Pause" : "Lecture"}
                           >
-                            {currentId === s.id && isPlaying ? "Pause" : "Play"}
+                            {currentId === s.id && isPlaying ? (
+                              <Pause className="w-4 h-4 text-amber-500" />
+                            ) : (
+                              <Play className="w-4 h-4 text-emerald-500" />
+                            )}
                           </Button>
                           {canUpdate && (
                             <Button
                               variant="outline"
+                              size="icon"
+                              className="h-8 w-8 hover:border-amber-400 hover:text-amber-400"
                               onClick={() => openEdit(s)}
+                              title="Éditer le single"
                             >
-                              Éditer
+                              <Pencil className="w-4 h-4" />
                             </Button>
                           )}
                           {canDelete && (
                             <Button
                               variant="destructive"
+                              size="icon"
+                              className="h-8 w-8"
                               onClick={() => setDeleteTarget(s)}
+                              title="Supprimer le single"
                             >
-                              Suppr.
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
                         </div>
@@ -397,6 +410,7 @@ export default function Songs() {
             open={showForm}
             onOpenChange={setShowForm}
             title={editing ? "Mettre à jour un single" : "Nouveau single"}
+            className="max-w-xl"
           >
             <form
               onSubmit={form.handleSubmit(onSubmit as any)}

@@ -13,6 +13,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@pyramidplay/ui": ["../../packages/ui/src/index.ts"],
+      "@pyramidplay/ui/*": ["../../packages/ui/src/*"]
+    },
 
     /* Linting */
     "strict": true,

@@ -208,66 +208,60 @@ export default function Genres() {
         </CardContent>
       </Card>
 
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>
-                {editing ? "Modifier le genre" : "Nouveau genre"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form
-                onSubmit={form.handleSubmit(onSubmit as any)}
-                className="space-y-4"
-              >
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Nom du genre</label>
-                  <Input
-                    {...form.register("name")}
-                    placeholder="ex: Afro-Jazz, Makossa..."
-                  />
-                  {form.formState.errors.name && (
-                    <p className="text-xs text-destructive">
-                      {form.formState.errors.name.message}
-                    </p>
-                  )}
-                </div>
+      <Dialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        title={editing ? "Modifier le genre" : "Nouveau genre"}
+        className="max-w-md"
+      >
+        <form
+          onSubmit={form.handleSubmit(onSubmit as any)}
+          className="space-y-4"
+        >
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Nom du genre</label>
+            <Input
+              {...form.register("name")}
+              placeholder="ex: Afro-Jazz, Makossa..."
+            />
+            {form.formState.errors.name && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.name.message}
+              </p>
+            )}
+          </div>
 
-                <div className="flex items-center gap-2 pt-2">
-                  <input
-                    type="checkbox"
-                    id="isSystem"
-                    {...form.register("isSystem")}
-                    disabled={roleName !== "ADMIN"}
-                    className="rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
-                  />
-                  <label
-                    htmlFor="isSystem"
-                    className={`text-sm ${roleName !== "ADMIN" ? "text-muted-foreground" : ""}`}
-                  >
-                    Genre système (réservé à l'administration)
-                  </label>
-                </div>
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              type="checkbox"
+              id="isSystem"
+              {...form.register("isSystem")}
+              disabled={roleName !== "ADMIN"}
+              className="rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
+            />
+            <label
+              htmlFor="isSystem"
+              className={`text-sm ${roleName !== "ADMIN" ? "text-muted-foreground" : ""}`}
+            >
+              Genre système (réservé à l'administration)
+            </label>
+          </div>
 
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowForm(false)}
-                  >
-                    Annuler
-                  </Button>
-                  <Button type="submit" loading={saveMutation.isPending}>
-                    {saveMutation.isPending
-                      ? "Enregistrement…"
-                      : "Enregistrer"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowForm(false)}
+            >
+              Annuler
+            </Button>
+            <Button type="submit" loading={saveMutation.isPending}>
+              {saveMutation.isPending
+                ? "Enregistrement…"
+                : "Enregistrer"}
+            </Button>
+          </div>
+        </form>
       </Dialog>
 
       <ConfirmDialog

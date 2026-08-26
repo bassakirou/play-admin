@@ -20,6 +20,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
+import { Pencil, Trash2, Disc, Eye } from "lucide-react";
 
 type Artist = {
   id: string;
@@ -323,13 +324,13 @@ export default function Artists() {
                       <th className="p-2">Albums</th>
                       <th className="p-2">Groupes</th>
                       <th className="p-2 text-center">Chansons</th>
-                      <th className="p-2 w-40">Actions</th>
+                      <th className="p-2 text-right min-w-[260px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems?.map((a) => (
                       <tr key={a.id} className="border-b">
-                        <td className="p-2">{a.name}</td>
+                        <td className="p-2 font-medium">{a.name}</td>
                         <td className="p-2">
                           {a.albums && a.albums.length ? (
                             <div className="flex flex-wrap gap-1">
@@ -359,27 +360,31 @@ export default function Artists() {
                             : "—"}
                         </td>
                         <td className="p-2 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <span>{a.songs?.length ?? 0}</span>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="font-semibold text-xs">{a.songs?.length ?? 0}</span>
                             {(a.songs?.length || 0) > 0 && (
                               <Button
                                 type="button"
-                                variant="outline"
-                                size="sm"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-amber-400 hover:bg-amber-400/10 hover:text-amber-300"
                                 onClick={() => setSongsDetailArtist(a)}
+                                title="Voir les chansons"
                               >
-                                Détail
+                                <Eye className="w-3.5 h-3.5" />
                               </Button>
                             )}
                           </div>
                         </td>
-                        <td className="p-2">
-                          <div className="flex gap-2">
+                        <td className="p-2 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                             {canManageArtists && (
                               <>
                                 <Button
                                   variant="outline"
-                                  size="sm"
+                                  size="icon"
+                                  className="h-8 w-8 hover:border-amber-400 hover:text-amber-400"
+                                  title="Éditer l'artiste"
                                   onClick={() => {
                                     setEditingArtist(a);
                                     setArtistName(a.name);
@@ -388,26 +393,30 @@ export default function Artists() {
                                     setShowArtistForm(true);
                                   }}
                                 >
-                                  Éditer
+                                  <Pencil className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant="destructive"
-                                  size="sm"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  title="Supprimer l'artiste"
                                   onClick={() => setDeleteTarget(a)}
                                 >
-                                  Suppr.
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </>
                             )}
                             {canCreateAlbum && (
                               <Button
                                 type="button"
-                                size="sm"
+                                size="icon"
+                                className="h-8 w-8 bg-amber-500 hover:bg-amber-600 text-black shadow-sm"
+                                title="Ajouter un album"
                                 onClick={() =>
                                   navigate(`/albums?artistId=${a.id}&new=1`)
                                 }
                               >
-                                Ajouter un album
+                                <Disc className="w-4 h-4" />
                               </Button>
                             )}
                           </div>
@@ -463,11 +472,13 @@ export default function Artists() {
                         <div className="flex items-center justify-between gap-2">
                           <div className="font-medium">{g.name}</div>
                           {canManageArtists && (
-                            <div className="flex gap-1">
+                            <div className="flex gap-1.5 items-center">
                               <Button
                                 type="button"
                                 variant="outline"
-                                size="sm"
+                                size="icon"
+                                className="h-7 w-7"
+                                title="Éditer le groupe"
                                 onClick={() => {
                                   setEditingGroup(g);
                                   setGroupName(g.name);
@@ -477,15 +488,17 @@ export default function Artists() {
                                   setShowGroupForm(true);
                                 }}
                               >
-                                Éditer
+                                <Pencil className="w-3.5 h-3.5" />
                               </Button>
                               <Button
                                 type="button"
                                 variant="destructive"
-                                size="sm"
+                                size="icon"
+                                className="h-7 w-7"
+                                title="Supprimer le groupe"
                                 onClick={() => deleteGroupMutation.mutate(g.id)}
                               >
-                                Suppr.
+                                <Trash2 className="w-3.5 h-3.5" />
                               </Button>
                             </div>
                           )}
@@ -517,6 +530,7 @@ export default function Artists() {
               }
             }}
             title={editingArtist ? "Modifier l'artiste" : "Nouvel artiste"}
+            className="max-w-xl"
           >
             <form
               onSubmit={(e) => {
@@ -530,7 +544,7 @@ export default function Artists() {
                   galleryFiles: artistGallery,
                 });
               }}
-              className="grid gap-4 max-h-[80vh] overflow-y-auto p-1"
+              className="grid gap-4"
             >
               <div className="space-y-2">
                 <Label>Nom</Label>
@@ -632,6 +646,7 @@ export default function Artists() {
                 ? "Modifier un groupe d’artistes"
                 : "Nouveau groupe d’artistes"
             }
+            className="max-w-lg"
           >
             <form
               onSubmit={(e) => {

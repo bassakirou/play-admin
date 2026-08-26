@@ -16,18 +16,21 @@ import { Select } from "../components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
+import { Pencil, Trash2 } from "lucide-react";
 
 type AppUser = {
   id: string;
   email: string;
   name?: string;
   role: any;
+  systemRoles?: string[];
 };
 
 type UserPayload = {
   email?: string;
   name?: string;
   role?: string;
+  systemRoles?: string[];
   password?: string;
   birthDate?: string;
   country?: string;
@@ -42,7 +45,7 @@ export default function Users() {
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState("user");
+  const [role, setRole] = useState("USER");
   const [password, setPassword] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [country, setCountry] = useState("");
@@ -63,43 +66,44 @@ export default function Users() {
 
   const saveMutation = useMutation({
     mutationFn: async (payload: UserPayload) => {
-      if (editing)
-        return (await api.patch(`/users/${editing.id}`, payload)).data;
+      if (editing) return (await api.patch(`/users/${editing.id}`, payload)).data;
       return (await api.post("/users", payload)).data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["artists"] });
       setShowForm(false);
       setEditing(null);
       setEmail("");
       setName("");
-      setRole("user");
+      setRole("USER");
       setPassword("");
+      setBirthDate("");
+      setCountry("");
+      setGender("");
       toast.success(editing ? "Utilisateur mis à jour" : "Utilisateur créé");
     },
-    onError: (err: any) => {
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Échec de sauvegarde de l’utilisateur";
-      toast.error(msg);
-    },
+    onError: (err: any) =>
+      toast.error(err?.response?.data?.message || "Échec d'enregistrement de l'utilisateur"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => (await api.delete(`/users/${id}`)).data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["artists"] });
+      setDeleteTarget(null);
       toast.success("Utilisateur supprimé");
     },
-    onError: () => toast.error("Échec de suppression"),
+    onError: (err: any) =>
+      toast.error(err?.response?.data?.message || "Échec de suppression de l'utilisateur"),
   });
 
   const openCreate = () => {
     setEditing(null);
     setEmail("");
     setName("");
-    setRole("user");
+    setRole("USER");
     setPassword("");
     setShowForm(true);
   };
@@ -107,17 +111,24 @@ export default function Users() {
     setEditing(u);
     setEmail(u.email);
     setName(u.name || "");
-    setRole(u.role?.name ?? u.role);
+    const currentRole = u.role?.name ?? u.role;
+    setRole(currentRole);
     setPassword("");
     setShowForm(true);
   };
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const roleName = role.toUpperCase();
+    const systemRoles = ["ADMIN", "SUPER_ADMIN", "ARTIST", "AUTHOR", "CREATOR", "USER"].includes(roleName)
+      ? [roleName]
+      : [];
+
     if (editing) {
       saveMutation.mutate({
         email,
         name,
-        role: role.toUpperCase(),
+        role: roleName,
+        systemRoles,
         ...(password.trim() ? { password: password.trim() } : {}),
       });
     } else {
@@ -125,8 +136,9 @@ export default function Users() {
         email,
         name,
         password,
-        role: role.toUpperCase(),
-        ...(role.toUpperCase() === "CREATOR"
+        role: roleName,
+        systemRoles,
+        ...(roleName === "CREATOR" || roleName === "ARTIST"
           ? { birthDate, country, gender }
           : {}),
       });
@@ -151,6 +163,12 @@ export default function Users() {
   const canUpdate = canAccess(roleName, permissions, "update", "user");
   const canDelete = canAccess(roleName, permissions, "delete", "user");
   const showActions = canUpdate || canDelete;
+
+  const isCurrentUserSuperAdmin =
+    (user as any)?.role === "SUPER_ADMIN" ||
+    (user as any)?.role?.name === "SUPER_ADMIN" ||
+    (user as any)?.systemRoles?.includes("SUPER_ADMIN") ||
+    user?.email?.toLowerCase() === "bassahakjm@gmail.com";
 
   return (
     <div className="p-6">
@@ -177,40 +195,93 @@ export default function Users() {
                   <tr>
                     <th className="p-2">Email</th>
                     <th className="p-2">Nom</th>
-                    <th className="p-2">Rôle</th>
-                    {showActions && <th className="p-2 w-32">Actions</th>}
+                    <th className="p-2">Rôle(s)</th>
+                    {showActions && <th className="p-2 text-right min-w-[100px]">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {pageItems?.map((u) => (
-                    <tr key={u.id} className="border-b">
-                      <td className="p-2">{u.email}</td>
-                      <td className="p-2">{u.name}</td>
-                      <td className="p-2">{u.role?.name ?? u.role}</td>
-                      {showActions && (
+                  {pageItems?.map((u) => {
+                    const targetRoleName = (u.role?.name ?? u.role)?.toUpperCase();
+                    const isTargetSuperAdmin =
+                      targetRoleName === "SUPER_ADMIN" ||
+                      (u.systemRoles || []).map((r) => r.toUpperCase()).includes("SUPER_ADMIN") ||
+                      u.email.toLowerCase() === "bassahakjm@gmail.com";
+
+                    const isTargetAdmin =
+                      targetRoleName === "ADMIN" ||
+                      (u.systemRoles || []).map((r) => r.toUpperCase()).includes("ADMIN");
+
+                    const canDeleteTarget =
+                      canDelete &&
+                      !isTargetSuperAdmin &&
+                      (!isTargetAdmin || isCurrentUserSuperAdmin);
+
+                    const canEditTarget =
+                      canUpdate &&
+                      (!isTargetSuperAdmin || isCurrentUserSuperAdmin);
+
+                    return (
+                      <tr key={u.id} className="border-b">
+                        <td className="p-2 font-medium">{u.email}</td>
+                        <td className="p-2">{u.name || "—"}</td>
                         <td className="p-2">
-                          <div className="flex gap-2">
-                            {canUpdate && (
-                              <Button
-                                variant="outline"
-                                onClick={() => openEdit(u)}
-                              >
-                                Éditer
-                              </Button>
+                          <div className="flex flex-wrap gap-1 items-center">
+                            {isTargetSuperAdmin ? (
+                              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold bg-amber-500 text-black shadow-sm">
+                                SUPER ADMIN
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                                {u.role?.name ?? u.role}
+                              </span>
                             )}
-                            {canDelete && (
-                              <Button
-                                variant="destructive"
-                                onClick={() => setDeleteTarget(u)}
-                              >
-                                Suppr.
-                              </Button>
-                            )}
+                            {(u.systemRoles || [])
+                              .filter(
+                                (sr) =>
+                                  sr.toUpperCase() !== "SUPER_ADMIN" &&
+                                  sr !== (u.role?.name ?? u.role),
+                              )
+                              .map((sr) => (
+                                <span
+                                  key={sr}
+                                  className="inline-flex items-center rounded-full px-1.5 py-0.2 text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                >
+                                  {sr}
+                                </span>
+                              ))}
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        {showActions && (
+                          <td className="p-2 text-right">
+                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                              {canEditTarget ? (
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8 hover:border-amber-400 hover:text-amber-400"
+                                  onClick={() => openEdit(u)}
+                                  title="Éditer l'utilisateur"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              ) : null}
+                              {canDeleteTarget ? (
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => setDeleteTarget(u)}
+                                  title="Supprimer l'utilisateur"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              ) : null}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               <div className="flex items-center justify-between mt-4">
@@ -286,17 +357,29 @@ export default function Users() {
                 <Select
                   options={[
                     { value: "", label: "— Choisir un rôle —" },
-                    ...(rolesQuery.data || []).map((r) => ({
-                      value: r.name,
-                      label: r.name,
-                    })),
+                    { value: "ADMIN", label: "ADMIN (Système - Administration)" },
+                    { value: "ARTIST", label: "ARTIST (Système - Chanteur / Interprète)" },
+                    { value: "AUTHOR", label: "AUTHOR (Système - Auteur / Écrivain)" },
+                    { value: "CREATOR", label: "CREATOR (Système - Vidéaste / Chaîne)" },
+                    { value: "USER", label: "USER (Système - Auditeur / Public)" },
+                    ...(rolesQuery.data || [])
+                      .filter(
+                        (r) =>
+                          !["SUPER_ADMIN", "ADMIN", "ARTIST", "AUTHOR", "CREATOR", "USER"].includes(
+                            r.name.toUpperCase(),
+                          ),
+                      )
+                      .map((r) => ({
+                        value: r.name,
+                        label: `${r.name} (Personnalisé)`,
+                      })),
                   ]}
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                 />
               </div>
 
-              {role.toUpperCase() === "CREATOR" && !editing && (
+              {(role.toUpperCase() === "CREATOR" || role.toUpperCase() === "ARTIST") && !editing && (
                 <>
                   <div className="space-y-2">
                     <Label>Date de naissance</Label>

@@ -22,7 +22,7 @@ import { CreateArtistGroupDialog } from "../components/ui/create-artist-group-di
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { MultiSelect } from "../components/ui/multi-select";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Pencil, Trash2 } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 
 type Album = {
@@ -366,7 +366,7 @@ export default function Albums() {
                     <th className="p-2">Année</th>
                     <th className="p-2">Artist ID</th>
                     <th className="p-2">Groupe ID</th>
-                    <th className="p-2 w-32">Actions</th>
+                    <th className="p-2 text-right min-w-[100px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -377,7 +377,7 @@ export default function Albums() {
                         : [];
                     return (
                       <tr key={a.id} className="border-b">
-                        <td className="p-2">
+                        <td className="p-2 font-medium">
                           <div className="flex items-center gap-2">
                             {a.coverUrl ? (
                               <img
@@ -402,27 +402,33 @@ export default function Albums() {
                             ? songGroups.map((g) => g.name || g.id).join(", ")
                             : "—"}
                         </td>
-                      <td className="p-2">
-                        <div className="flex gap-2">
-                          {canUpdate && (
-                            <Button
-                              variant="outline"
-                              onClick={() => openEdit(a)}
-                            >
-                              Éditer
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button
-                              variant="destructive"
-                              onClick={() => setDeleteTarget(a)}
-                            >
-                              Suppr.
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                        <td className="p-2 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                            {canUpdate && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 hover:border-amber-400 hover:text-amber-400"
+                                onClick={() => openEdit(a)}
+                                title="Éditer l'album"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setDeleteTarget(a)}
+                                title="Supprimer l'album"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -454,6 +460,7 @@ export default function Albums() {
             open={showForm}
             onOpenChange={setShowForm}
             title={editing ? "Mettre à jour un album" : "Nouvel album"}
+            className="max-w-xl"
           >
             <form
               onSubmit={form.handleSubmit(onSubmit as any)}

@@ -22,7 +22,11 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("/auth/forgot-password", { email });
+      await api.post("/auth/forgot-password", {
+        email: email.trim().toLowerCase(),
+        source: "admin",
+        appUrl: window.location.origin,
+      });
       setSent(true);
       toast.success(
         "Si cet e-mail existe, un lien de réinitialisation sera envoyé.",

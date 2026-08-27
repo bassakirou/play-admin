@@ -427,6 +427,20 @@ export default function Songs() {
               <div className="sm:col-span-2 space-y-1">
                 <FileDropzone
                   initialItems={form.watch("audioUrl") ? [form.watch("audioUrl")] : []}
+                  onSelectedUrl={(url, meta) => {
+                    form.setValue("audioUrl", url);
+                    if (meta?.duration) form.setValue("duration", meta.duration);
+                    form.clearErrors("audioUrl");
+                  }}
+                  onSelectedLibraryItems={(items) => {
+                    if (items[0]) {
+                      form.setValue("audioUrl", items[0].fileUrl);
+                      if (items[0].duration) form.setValue("duration", items[0].duration);
+                      if (!form.getValues("title") && items[0].title) form.setValue("title", items[0].title);
+                      form.clearErrors("audioUrl");
+                      toast.success(`Audio "${items[0].title || items[0].filename}" sélectionné.`);
+                    }
+                  }}
                   onSelected={async (file, meta) => {
                     try {
                       const fd = new FormData();
@@ -502,6 +516,16 @@ export default function Songs() {
                   accept="image/jpeg,image/png,image/webp"
                   valueUrl={form.watch("coverUrl") || ""}
                   onRemoveValueUrl={() => form.setValue("coverUrl", "")}
+                  onSelectedUrl={(url) => {
+                    form.setValue("coverUrl", url);
+                    form.clearErrors("coverUrl");
+                  }}
+                  onSelectedLibraryItems={(items) => {
+                    if (items[0]) {
+                      form.setValue("coverUrl", items[0].fileUrl);
+                      form.clearErrors("coverUrl");
+                    }
+                  }}
                   onSelected={async (file) => {
                     if (!file) {
                       form.setValue("coverUrl", "");

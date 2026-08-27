@@ -106,11 +106,9 @@ export default function Videos() {
     title: z.string().min(1, "Le titre est requis"),
     description: z.string().optional(),
     channelId: z.string().min(1, "La chaîne de publication est requise"),
-    artistIds: z.array(z.string()).optional(),
-    genreId: z.string().uuid("Le genre est requis"),
     category: z.string().optional(),
     tagsInput: z.string().optional(),
-    duration: z.coerce.number().int().positive("La durée doit être supérieure à 0"),
+    duration: z.coerce.number().int().min(0).default(0),
     thumbnailUrl: z.string().optional().or(z.literal("")),
     videoUrl: z.string().min(1, "Le fichier vidéo est requis"),
     isPublished: z.boolean().optional(),
@@ -122,8 +120,6 @@ export default function Videos() {
     title: "",
     description: "",
     channelId: "",
-    artistIds: [],
-    genreId: "",
     category: "",
     tagsInput: "",
     duration: 0,
@@ -172,21 +168,9 @@ export default function Videos() {
     queryFn: async () => (await api.get("/artists/channels")).data as Channel[],
   });
 
-  const artistsQuery = useQuery({
-    queryKey: ["artists-all"],
-    queryFn: async () =>
-      (await api.get("/artists?type=catalog")).data as { id: string; name: string }[],
-  });
-
   const usersQuery = useQuery({
     queryKey: ["users-all"],
     queryFn: async () => (await api.get("/users")).data as UserItem[],
-  });
-
-  const genresQuery = useQuery({
-    queryKey: ["genres"],
-    queryFn: async () =>
-      (await api.get("/genres")).data as { id: string; name: string }[],
   });
 
   const playlistsQuery = useQuery({
@@ -288,11 +272,9 @@ export default function Videos() {
       title: v.title,
       description: v.description || "",
       channelId: currentChannel?.id || v.user?.artistProfile?.id || "",
-      artistIds: (v.artists || []).map((a) => a.id),
-      genreId: v.genre?.id || v.genreId || "",
       category: v.category || "",
       tagsInput,
-      duration: v.duration,
+      duration: v.duration || 0,
       thumbnailUrl: v.thumbnailUrl || "",
       videoUrl: v.videoUrl || "",
       isPublished: v.isPublished,
@@ -311,8 +293,6 @@ export default function Videos() {
       title: values.title,
       description: values.description || undefined,
       channelId: values.channelId,
-      artistIds: values.artistIds || [],
-      genreId: values.genreId,
       category: values.category || undefined,
       tags,
       duration: values.duration,
@@ -403,26 +383,34 @@ export default function Videos() {
       form.setValue("videoUrl", url);
       form.clearErrors("videoUrl");
 
+      const detectedDuration =
+        res.data?.analysis?.duration && res.data.analysis.duration > 0
+          ? res.data.analysis.duration
+          : meta?.duration && meta.duration > 0
+          ? meta.duration
+          : 0;
+
       if (res.data?.analysis) {
         setSourceAnalysis(res.data.analysis);
-        if (res.data.analysis.duration > 0) {
-          form.setValue("duration", res.data.analysis.duration);
-          form.clearErrors("duration");
-        }
-      } else if (meta?.duration && meta.duration > 0) {
-        form.setValue("duration", meta.duration);
+      }
+      if (detectedDuration > 0) {
+        form.setValue("duration", detectedDuration);
         form.clearErrors("duration");
       }
+
       setUploadProgress(100);
-      toast.success("Vidéo source uploadée. Vous pouvez générer les variantes de qualité HLS.");
+      toast.success("Vidéo source uploadée. Encodage et génération des variantes HLS en cours...");
+      
+      // Auto-trigger HLS multi-quality generation immediately
+      await handleGenerateAllVariants(rawUrl);
     } catch {
       setUploadProgress(null);
       toast.error("Échec d'upload de la vidéo");
     }
   };
 
-  const handleGenerateAllVariants = async () => {
-    const targetUrl = rawSourceUrl || form.watch("videoUrl");
+  const handleGenerateAllVariants = async (overrideUrl?: string) => {
+    const targetUrl = overrideUrl || rawSourceUrl || form.watch("videoUrl");
     if (!targetUrl) {
       toast.error("Veuillez d'abord téléverser une vidéo source");
       return;
@@ -443,8 +431,11 @@ export default function Videos() {
       }
       if (data?.analysis) {
         setSourceAnalysis(data.analysis);
+        if (data.analysis.duration > 0 && !form.watch("duration")) {
+          form.setValue("duration", data.analysis.duration);
+        }
       }
-      toast.success("Variantes de qualité générées avec succès (Flux HLS)");
+      toast.success("Variantes de qualité HLS générées avec succès !");
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Échec de la génération des variantes");
     } finally {
@@ -482,6 +473,24 @@ export default function Videos() {
     }
   };
 
+  const resolveMediaUrl = (url?: string) => {
+    if (!url) return undefined;
+    if (url.startsWith("blob:")) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      if ((/localhost:9000|media\.pyramidplay\.cm/.test(url)) && !url.includes("resolved-video")) {
+        const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
+        return `${base}/files/resolved-video?url=${encodeURIComponent(url)}`;
+      }
+      return url;
+    }
+    if (url.startsWith("/")) {
+      const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
+      return `${base}${url}`;
+    }
+    const base = (api.defaults.baseURL || "").replace(/\/+$/, "");
+    return `${base}/files/resolved-video?url=${encodeURIComponent('/videos/' + url)}`;
+  };
+
   // Filters & Pagination
   const filteredVideos = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -500,10 +509,8 @@ export default function Videos() {
       const titleMatch = v.title.toLowerCase().includes(q);
       const channelMatch =
         (v.user?.artistProfile?.name || v.user?.name || "").toLowerCase().includes(q);
-      const artistMatch = (v.artists || []).some((a) =>
-        a.name.toLowerCase().includes(q),
-      );
-      return titleMatch || channelMatch || artistMatch;
+      const categoryMatch = (v.category || "").toLowerCase().includes(q);
+      return titleMatch || channelMatch || categoryMatch;
     });
   }, [videosData, search, selectedChannelFilter]);
 
@@ -542,15 +549,6 @@ export default function Videos() {
       value: c.id,
       label: `${c.name} (${c.user?.name || c.user?.email || "Créateur"})`,
     }))
-  );
-
-  const artistOptions = (artistsQuery.data || []).map((a) => ({
-    value: a.id,
-    label: a.name,
-  }));
-
-  const genreOptions = [{ value: "", label: "— Choisir un genre —" }].concat(
-    (genresQuery.data || []).map((g) => ({ value: g.id, label: g.name })),
   );
 
   const playlistOptions = (playlistsQuery.data || []).map((p) => ({
@@ -643,8 +641,8 @@ export default function Videos() {
                   <tr>
                     <th className="p-3 rounded-l-md">Titre</th>
                     <th className="p-3">Chaîne (Uploader)</th>
-                    <th className="p-3">Artistes Associés</th>
                     <th className="p-3">Catégorie</th>
+                    <th className="p-3">Tags</th>
                     <th className="p-3">Durée</th>
                     <th className="p-3">Vues</th>
                     <th className="p-3">Statut</th>
@@ -699,11 +697,15 @@ export default function Videos() {
                               </span>
                             </div>
                           </td>
-                          <td className="p-3 text-muted-foreground">
-                            {(v.artists || []).map((a) => a.name).join(", ") || "—"}
-                          </td>
                           <td className="p-3 text-muted-foreground">{v.category || "—"}</td>
-                          <td className="p-3 text-muted-foreground">{v.duration}s</td>
+                          <td className="p-3 text-muted-foreground max-w-[150px] truncate" title={Array.isArray(v.tags) ? v.tags.join(", ") : String(v.tags || "")}>
+                            {Array.isArray(v.tags) && v.tags.length > 0
+                              ? v.tags.join(", ")
+                              : typeof v.tags === "string" && v.tags
+                              ? v.tags
+                              : "—"}
+                          </td>
+                          <td className="p-3 text-muted-foreground font-mono">{v.duration}s</td>
                           <td className="p-3 text-muted-foreground font-mono">{v.views}</td>
                           <td className="p-3">
                             <span
@@ -949,6 +951,14 @@ export default function Videos() {
                 onSelected={(file) => {
                   void uploadImage(file, "imageUrl", channelForm);
                 }}
+                onSelectedUrl={(url) => {
+                  channelForm.setValue("imageUrl", url);
+                }}
+                onSelectedLibraryItems={(items) => {
+                  if (items[0]) {
+                    channelForm.setValue("imageUrl", items[0].fileUrl);
+                  }
+                }}
               />
             </div>
             <div className="space-y-1">
@@ -960,6 +970,14 @@ export default function Videos() {
                 onRemoveValueUrl={() => channelForm.setValue("bannerUrl", "")}
                 onSelected={(file) => {
                   void uploadImage(file, "bannerUrl", channelForm);
+                }}
+                onSelectedUrl={(url) => {
+                  channelForm.setValue("bannerUrl", url);
+                }}
+                onSelectedLibraryItems={(items) => {
+                  if (items[0]) {
+                    channelForm.setValue("bannerUrl", items[0].fileUrl);
+                  }
                 }}
               />
             </div>
@@ -998,7 +1016,7 @@ export default function Videos() {
       >
         <form
           onSubmit={form.handleSubmit(onVideoSubmit as any)}
-          className="grid gap-3 sm:grid-cols-2 max-h-[75vh] overflow-y-auto pr-1"
+          className="grid gap-3 sm:grid-cols-2 pr-1"
         >
           <div className="sm:col-span-2 space-y-1">
             <label className="text-sm font-medium">Titre de la vidéo</label>
@@ -1029,50 +1047,36 @@ export default function Videos() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">Artistes associés / Feat. (Optionnel)</label>
-            <MultiSelect
-              options={artistOptions}
-              value={form.watch("artistIds") || []}
-              onChange={(vals) => {
-                form.setValue("artistIds", vals);
-              }}
-              placeholder="Sélectionner des artistes musicaux..."
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Genre musical / Thème</label>
-            <Select options={genreOptions} {...form.register("genreId")} />
-            {form.formState.errors.genreId && (
-              <p className="text-xs text-destructive">{form.formState.errors.genreId.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
             <label className="text-sm font-medium">Catégorie</label>
-            <Input placeholder="Ex: Clip, Live, Interview, Vlog..." {...form.register("category")} />
+            <Input placeholder="Ex: Clip, Live, Interview, Vlog, Tutoriel..." {...form.register("category")} />
           </div>
 
           <div className="space-y-1">
             <label className="text-sm font-medium">Tags</label>
             <Input
-              placeholder="Tags séparés par des virgules (ex: afrobeats, 2026, clip)"
+              placeholder="Tags séparés par des virgules (ex: afrobeats, concert, 2026)"
               {...form.register("tagsInput")}
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Durée (en secondes)</label>
-            <Input
-              type="number"
-              placeholder="Durée calculée automatiquement ou saisie"
-              {...form.register("duration")}
-            />
-            {form.formState.errors.duration && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.duration.message}
-              </p>
-            )}
+          <div className="sm:col-span-2 space-y-1">
+            <label className="text-sm font-medium">Durée de la vidéo</label>
+            <div className="relative">
+              <Input
+                type="text"
+                readOnly
+                className="bg-muted/40 cursor-default text-muted-foreground font-mono"
+                value={
+                  form.watch("duration") && form.watch("duration") > 0
+                    ? `${form.watch("duration")} secondes (${Math.floor(form.watch("duration") / 60)}:${String(form.watch("duration") % 60).padStart(2, "0")})`
+                    : "Automatique (calculée lors du téléversement)"
+                }
+                placeholder="Automatique (calculée lors du téléversement)"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              La durée est détectée automatiquement à partir des métadonnées du fichier vidéo.
+            </p>
           </div>
 
           <div className="sm:col-span-2 space-y-2">
@@ -1085,6 +1089,16 @@ export default function Videos() {
               onSelected={(file) => {
                 void uploadImage(file, "thumbnailUrl", form);
               }}
+              onSelectedUrl={(url) => {
+                form.setValue("thumbnailUrl", url);
+                form.clearErrors("thumbnailUrl");
+              }}
+              onSelectedLibraryItems={(items) => {
+                if (items[0]) {
+                  form.setValue("thumbnailUrl", items[0].fileUrl);
+                  form.clearErrors("thumbnailUrl");
+                }
+              }}
             />
           </div>
 
@@ -1095,6 +1109,34 @@ export default function Videos() {
               accept="video/mp4,video/*"
               onSelected={(file, meta) => {
                 void uploadVideoFile(file, meta);
+              }}
+              onSelectedUrl={(url, meta) => {
+                form.setValue("videoUrl", url);
+                form.clearErrors("videoUrl");
+                if (meta?.duration) {
+                  form.setValue("duration", meta.duration);
+                  form.clearErrors("duration");
+                }
+              }}
+              onSelectedLibraryItems={(items) => {
+                if (items[0]) {
+                  const item = items[0];
+                  form.setValue("videoUrl", item.fileUrl);
+                  form.clearErrors("videoUrl");
+                  if (item.duration) {
+                    form.setValue("duration", item.duration);
+                    form.clearErrors("duration");
+                  }
+                  if (!form.getValues("title") && item.title) {
+                    form.setValue("title", item.title);
+                  }
+                  if (!form.getValues("thumbnailUrl") && item.thumbnailUrl) {
+                    form.setValue("thumbnailUrl", item.thumbnailUrl);
+                  }
+                  setRawSourceUrl(item.fileUrl);
+                  toast.success(`Vidéo "${item.title || item.filename}" sélectionnée.`);
+                  void handleGenerateAllVariants(item.fileUrl);
+                }
               }}
               initialItems={
                 form.watch("videoUrl")
@@ -1110,8 +1152,13 @@ export default function Videos() {
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <div className="text-xs text-muted-foreground font-mono">
-                  Progression de l'upload : {uploadProgress}%
+                <div className="text-xs text-muted-foreground font-mono flex items-center justify-between">
+                  <span>Progression : {uploadProgress}%</span>
+                  {isGeneratingVariants && (
+                    <span className="text-amber-500 font-semibold animate-pulse">
+                      Génération FFmpeg HLS en cours...
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -1128,6 +1175,7 @@ export default function Videos() {
               sourceUrl={rawSourceUrl || form.watch("videoUrl")}
               analysis={sourceAnalysis}
               variants={qualityVariants}
+              resolveUrl={resolveMediaUrl}
               onVariantsChange={(v) => {
                 setQualityVariants(v);
               }}
@@ -1165,11 +1213,21 @@ export default function Videos() {
           </div>
 
           <div className="flex gap-2 sm:col-span-2 pt-3 border-t mt-4">
-            <Button type="submit" loading={saveVideoMutation.isPending}>
+            <Button
+              type="submit"
+              loading={saveVideoMutation.isPending || isGeneratingVariants}
+              disabled={
+                saveVideoMutation.isPending ||
+                isGeneratingVariants ||
+                (uploadProgress !== null && uploadProgress < 100)
+              }
+            >
               {saveVideoMutation.isPending
                 ? editing
                   ? "Mise à jour…"
                   : "Création…"
+                : isGeneratingVariants
+                ? "Génération des qualités HLS en cours…"
                 : editing
                 ? "Mettre à jour"
                 : "Créer la vidéo"}

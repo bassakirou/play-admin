@@ -460,11 +460,11 @@ export default function Albums() {
             open={showForm}
             onOpenChange={setShowForm}
             title={editing ? "Mettre à jour un album" : "Nouvel album"}
-            className="max-w-xl"
+            className=""
           >
             <form
               onSubmit={form.handleSubmit(onSubmit as any)}
-              className="grid gap-3 sm:grid-cols-2"
+              className="space-y-6  pr-1"
             >
               <div className="sm:col-span-2 space-y-1">
                 <Input placeholder="Titre de l'album" {...form.register("title")} />

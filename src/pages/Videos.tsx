@@ -235,12 +235,16 @@ export default function Videos() {
     setShowForm(true);
   };
 
-  const openEditVideo = (v: Video) => {
+  const formatDurationSec = (totalSeconds: number): string => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = Math.floor(totalSeconds % 60);
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  const openEditVideo = async (v: Video) => {
     setEditing(v);
     setUploadProgress(null);
     setRawSourceUrl(v.videoUrl || "");
-    setQualityVariants({});
-    setSourceAnalysis(null);
 
     let tagsInput = "";
     if (Array.isArray(v.tags)) {
@@ -270,7 +274,50 @@ export default function Videos() {
       videoUrl: v.videoUrl || "",
       isPublished: v.isPublished,
     });
+
+    // Optimistic fallback for HLS streams so cards and previews display immediately
+    if (v.videoUrl && (v.videoUrl.includes("/hls/") || v.videoUrl.endsWith(".m3u8"))) {
+      const hlsPrefixMatch = v.videoUrl.match(/^(.*\/hls\/[^/?#]+)/);
+      const baseHlsUrl = hlsPrefixMatch ? hlsPrefixMatch[1] : v.videoUrl.substring(0, v.videoUrl.lastIndexOf("/"));
+      setQualityVariants({
+        "720p": `${baseHlsUrl}/720p/index.m3u8`,
+        "480p": `${baseHlsUrl}/480p/index.m3u8`,
+        "360p": `${baseHlsUrl}/360p/index.m3u8`,
+      });
+      setSourceAnalysis({
+        width: 1280,
+        height: 720,
+        duration: v.duration || 0,
+        formattedDuration: formatDurationSec(v.duration || 0),
+        maxQuality: "720p",
+        maxQualityLabel: "720P",
+      });
+    } else {
+      setQualityVariants({});
+      setSourceAnalysis(null);
+    }
+
     setShowForm(true);
+
+    // Call inspection endpoint to load exact verified variants & source analysis
+    if (v.videoUrl) {
+      try {
+        const res = await api.post("/files/inspect-video-variants", { url: v.videoUrl });
+        const data = res.data;
+        if (data?.variants && Object.keys(data.variants).length > 0) {
+          setQualityVariants(data.variants);
+        }
+        if (data?.analysis) {
+          setSourceAnalysis({
+            ...data.analysis,
+            duration: data.analysis.duration || v.duration || 0,
+            formattedDuration: data.analysis.formattedDuration || (v.duration ? formatDurationSec(v.duration) : "00:00"),
+          });
+        }
+      } catch (err) {
+        console.warn("[openEditVideo] Inspection des variantes échouée:", err);
+      }
+    }
   };
 
   const onVideoSubmit = (values: VideoFormValues) => {

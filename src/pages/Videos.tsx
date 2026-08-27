@@ -15,7 +15,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Checkbox } from "../components/ui/checkbox";
 import { Textarea } from "../components/ui/textarea";
 import { Select } from "../components/ui/select";
-import { MultiSelect } from "../components/ui/multi-select";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X, HelpCircle } from "lucide-react";
@@ -112,7 +111,6 @@ export default function Videos() {
     thumbnailUrl: z.string().optional().or(z.literal("")),
     videoUrl: z.string().min(1, "Le fichier vidéo est requis"),
     isPublished: z.boolean().optional(),
-    playlistIds: z.array(z.string()).optional(),
   });
   type VideoFormValues = z.infer<typeof videoSchema>;
 
@@ -126,7 +124,6 @@ export default function Videos() {
     thumbnailUrl: "",
     videoUrl: "",
     isPublished: true,
-    playlistIds: [],
   };
 
   const form = useForm<VideoFormValues>({
@@ -171,12 +168,6 @@ export default function Videos() {
   const usersQuery = useQuery({
     queryKey: ["users-all"],
     queryFn: async () => (await api.get("/users")).data as UserItem[],
-  });
-
-  const playlistsQuery = useQuery({
-    queryKey: ["video-playlists"],
-    queryFn: async () =>
-      (await api.get("/video-playlists")).data as { id: string; name: string }[],
   });
 
   // Mutations
@@ -278,7 +269,6 @@ export default function Videos() {
       thumbnailUrl: v.thumbnailUrl || "",
       videoUrl: v.videoUrl || "",
       isPublished: v.isPublished,
-      playlistIds: (v.videoPlaylists || []).map((p) => p.id),
     });
     setShowForm(true);
   };
@@ -299,7 +289,6 @@ export default function Videos() {
       thumbnailUrl: values.thumbnailUrl || undefined,
       videoUrl: values.videoUrl,
       isPublished: !!values.isPublished,
-      videoPlaylistIds: values.playlistIds || [],
     });
   };
 
@@ -550,11 +539,6 @@ export default function Videos() {
       label: `${c.name} (${c.user?.name || c.user?.email || "Créateur"})`,
     }))
   );
-
-  const playlistOptions = (playlistsQuery.data || []).map((p) => ({
-    value: p.id,
-    label: p.name,
-  }));
 
   const userOptions = [{ value: "", label: "— Choisir un utilisateur —" }].concat(
     (usersQuery.data || []).map((u) => ({
@@ -1189,16 +1173,6 @@ export default function Videos() {
               }}
               isGenerating={isGeneratingVariants}
               generatingQuality={generatingQuality}
-            />
-          </div>
-
-          <div className="sm:col-span-2 space-y-1">
-            <label className="text-sm font-medium">Playlists vidéo (Optionnel)</label>
-            <MultiSelect
-              options={playlistOptions}
-              value={form.watch("playlistIds") || []}
-              onChange={(vals) => form.setValue("playlistIds", vals)}
-              placeholder="Ajouter à des playlists..."
             />
           </div>
 

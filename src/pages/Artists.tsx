@@ -14,7 +14,6 @@ import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Dialog } from "../components/ui/dialog";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
-import { MultiSelect } from "../components/ui/multi-select";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { Checkbox } from "../components/ui/checkbox";
 import { toast } from "sonner";
@@ -53,10 +52,6 @@ export default function Artists() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const [showGroupForm, setShowGroupForm] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<ArtistGroup | null>(null);
-  const [groupName, setGroupName] = useState("");
-  const [groupMembers, setGroupMembers] = useState<string[]>([]);
   const [songsDetailArtist, setSongsDetailArtist] = useState<Artist | null>(
     null,
   );
@@ -89,53 +84,6 @@ export default function Artists() {
     queryKey: ["artist-groups"],
     queryFn: async () =>
       (await api.get("/artist-groups")).data as ArtistGroup[],
-  });
-
-  const groupMutation = useMutation({
-    mutationFn: async (payload: { name: string; memberIds: string[] }) =>
-      (await api.post("/artist-groups", payload)).data,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["artist-groups"] });
-      setGroupName("");
-      setGroupMembers([]);
-      setEditingGroup(null);
-      setShowGroupForm(false);
-      toast.success("Groupe créé");
-    },
-    onError: () => toast.error("Échec de création du groupe"),
-  });
-
-  const updateGroupMutation = useMutation({
-    mutationFn: async (payload: {
-      id: string;
-      name: string;
-      memberIds: string[];
-    }) =>
-      (
-        await api.patch(`/artist-groups/${payload.id}`, {
-          name: payload.name,
-          memberIds: payload.memberIds,
-        })
-      ).data,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["artist-groups"] });
-      setGroupName("");
-      setGroupMembers([]);
-      setEditingGroup(null);
-      setShowGroupForm(false);
-      toast.success("Groupe mis à jour");
-    },
-    onError: () => toast.error("Échec de mise à jour du groupe"),
-  });
-
-  const deleteGroupMutation = useMutation({
-    mutationFn: async (id: string) =>
-      (await api.delete(`/artist-groups/${id}`)).data,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["artist-groups"] });
-      toast.success("Groupe supprimé");
-    },
-    onError: () => toast.error("Échec de suppression du groupe"),
   });
 
   const saveArtistMutation = useMutation({
@@ -253,16 +201,11 @@ export default function Artists() {
   const canManageArtists = canAccess(roleName, permissions, "update", "artist");
   const canCreateAlbum = canAccess(roleName, permissions, "create", "album");
 
-  const artistOptions = (artistsQuery.data || []).map((a) => ({
-    value: a.id,
-    label: a.name,
-  }));
-
   return (
     <div className="p-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Artistes</CardTitle>
+          <CardTitle>Artistes Solos</CardTitle>
           <div className="flex gap-2">
             <Input
               placeholder="Rechercher un artiste…"
@@ -285,18 +228,6 @@ export default function Artists() {
                   }}
                 >
                   Nouvel Artiste
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingGroup(null);
-                    setGroupName("");
-                    setGroupMembers([]);
-                    setShowGroupForm(true);
-                  }}
-                >
-                  Regrouper en groupe
                 </Button>
                 <Button
                   type="button"
@@ -449,69 +380,6 @@ export default function Artists() {
                   </div>
                 </div>
               </div>
-
-              <div>
-                <h2 className="text-sm font-semibold mb-2">
-                  Groupes d&apos;artistes
-                </h2>
-                {groupsQuery.isLoading ? (
-                  <p className="text-xs text-muted-foreground">
-                    Chargement des groupes…
-                  </p>
-                ) : (groupsQuery.data || []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Aucun groupe pour le moment.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {(groupsQuery.data || []).map((g) => (
-                      <div
-                        key={g.id}
-                        className="border rounded-md px-3 py-2 text-xs"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="font-medium">{g.name}</div>
-                          {canManageArtists && (
-                            <div className="flex gap-1.5 items-center">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="h-7 w-7"
-                                title="Éditer le groupe"
-                                onClick={() => {
-                                  setEditingGroup(g);
-                                  setGroupName(g.name);
-                                  setGroupMembers(
-                                    (g.members || []).map((m) => m.id),
-                                  );
-                                  setShowGroupForm(true);
-                                }}
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                className="h-7 w-7"
-                                title="Supprimer le groupe"
-                                onClick={() => deleteGroupMutation.mutate(g.id)}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-muted-foreground mt-1">
-                          {(g.members || []).map((m) => m.name).join(", ") ||
-                            "Aucun membre"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
@@ -631,86 +499,6 @@ export default function Artists() {
             </form>
           </Dialog>
 
-          <Dialog
-            open={showGroupForm}
-            onOpenChange={(open) => {
-              setShowGroupForm(open);
-              if (!open) {
-                setEditingGroup(null);
-                setGroupName("");
-                setGroupMembers([]);
-              }
-            }}
-            title={
-              editingGroup
-                ? "Modifier un groupe d’artistes"
-                : "Nouveau groupe d’artistes"
-            }
-            className="max-w-lg"
-          >
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!groupName.trim()) {
-                  toast.error("Nom requis");
-                  return;
-                }
-                if (!groupMembers.length) {
-                  toast.error("Sélectionner au moins un artiste");
-                  return;
-                }
-                if (editingGroup) {
-                  updateGroupMutation.mutate({
-                    id: editingGroup.id,
-                    name: groupName.trim(),
-                    memberIds: groupMembers,
-                  });
-                } else {
-                  groupMutation.mutate({
-                    name: groupName.trim(),
-                    memberIds: groupMembers,
-                  });
-                }
-              }}
-              className="grid gap-3"
-            >
-              <Input
-                placeholder="Nom du groupe"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                required
-              />
-              <MultiSelect
-                options={artistOptions}
-                value={groupMembers}
-                onChange={setGroupMembers}
-                placeholder="Sélectionner des artistes..."
-              />
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  loading={
-                    groupMutation.isPending || updateGroupMutation.isPending
-                  }
-                >
-                  {groupMutation.isPending || updateGroupMutation.isPending
-                    ? editingGroup
-                      ? "Mise à jour…"
-                      : "Création…"
-                    : editingGroup
-                    ? "Mettre à jour"
-                    : "Créer"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowGroupForm(false)}
-                >
-                  Annuler
-                </Button>
-              </div>
-            </form>
-          </Dialog>
           <Dialog
             open={!!songsDetailArtist}
             onOpenChange={(open) => {

@@ -9,6 +9,7 @@ import Users from "./pages/Users";
 import Roles from "./pages/Roles";
 import SetupSuperAdmin from "./pages/SetupSuperAdmin";
 import Artists from "./pages/Artists";
+import ArtistGroups from "./pages/ArtistGroups";
 import Genres from "./pages/Genres";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -124,6 +125,16 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <Artists />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/artist-groups",
+    element: (
+      <RootLayout>
+        <Protected>
+          <ArtistGroups />
         </Protected>
       </RootLayout>
     ),

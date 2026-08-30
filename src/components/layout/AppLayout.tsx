@@ -7,6 +7,7 @@ import {
   Music,
   Video,
   Users,
+  User,
   Shield,
   LayoutDashboard,
   Tag,
@@ -23,6 +24,7 @@ import { cn } from "../../lib/utils";
 import { canAccess, RBACResource } from "../../auth/rbac";
 import { UserMenuPopover } from "./UserMenuPopover";
 import { QuickCreateMenu } from "./QuickCreateMenu";
+import { SidebarAccordion } from "@pyramidplay/ui";
 
 function useAdminTheme() {
   const [isDark, setIsDark] = useState(() =>
@@ -47,14 +49,27 @@ function useAdminTheme() {
   return isDark;
 }
 
-type NavSection = {
-  title?: string;
+type NavItem = {
+  to: string;
+  label: string;
+  icon: any;
+  resource: string | null;
+};
+
+type NavGroup = {
+  title: string;
+  icon?: any;
+  resource: string | null;
   items: {
     to: string;
     label: string;
-    icon: any;
-    resource: string | null;
+    icon?: any;
   }[];
+};
+
+type NavSection = {
+  title?: string;
+  items: (NavItem | NavGroup)[];
 };
 
 const navSections: NavSection[] = [
@@ -72,7 +87,15 @@ const navSections: NavSection[] = [
       { to: "/audiobooks", label: "Livres Audio", icon: BookHeadphones, resource: "audiobook" },
       { to: "/videos", label: "Vidéos", icon: Video, resource: "video" },
       { to: "/genres", label: "Genres", icon: Tag, resource: "genre" },
-      { to: "/artists", label: "Artistes", icon: Users, resource: "artist" },
+      {
+        title: "Artistes & Groupes",
+        icon: Users,
+        resource: "artist",
+        items: [
+          { to: "/artists", label: "Artistes Solos", icon: User },
+          { to: "/artist-groups", label: "Groupes d'Artistes", icon: Users },
+        ],
+      },
     ],
   },
   {
@@ -116,7 +139,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (p.startsWith("/audiobooks")) return "Livres Audio";
     if (p.startsWith("/videos")) return "Vidéos";
     if (p.startsWith("/genres")) return "Genres";
-    if (p.startsWith("/artists")) return "Artistes & Groupes";
+    if (p.startsWith("/artist-groups")) return "Groupes d'Artistes";
+    if (p.startsWith("/artists")) return "Artistes Solos";
     if (p.startsWith("/users")) return "Gestion des Utilisateurs";
     if (p.startsWith("/roles")) return "Rôles & Droits d'accès";
     if (p.startsWith("/maintenance")) return "Notifications Maintenance";
@@ -124,6 +148,54 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (p.startsWith("/changelog")) return "Mises à jour (Changelog)";
     if (p.startsWith("/media-specifications")) return "Guide & Spécifications Médias";
     return "Administration";
+  };
+
+  const renderNavEntry = (entry: NavItem | NavGroup, isMobile = false) => {
+    if ("items" in entry) {
+      // It's a NavGroup (Accordion)
+      return (
+        <SidebarAccordion
+          key={entry.title}
+          title={entry.title}
+          icon={entry.icon}
+          items={entry.items}
+          collapsed={!isMobile && sidebarCollapsed}
+          pathname={location.pathname}
+          renderLink={({ item, children }) => (
+            <NavLink
+              to={item.to}
+              onClick={() => isMobile && setIsMobileMenuOpen(false)}
+              className="block"
+            >
+              {children}
+            </NavLink>
+          )}
+        />
+      );
+    }
+
+    // Single NavItem
+    const { to, label, icon: Icon } = entry;
+    return (
+      <NavLink
+        key={to}
+        to={to}
+        end={to === "/"}
+        onClick={() => isMobile && setIsMobileMenuOpen(false)}
+        className={({ isActive }) =>
+          cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-all group relative",
+            isActive
+              ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            !isMobile && sidebarCollapsed && "justify-center px-2"
+          )
+        }
+      >
+        <Icon className="h-4 w-4 shrink-0 transition-transform group-hover:scale-110" />
+        {(!sidebarCollapsed || isMobile) && <span>{label}</span>}
+      </NavLink>
+    );
   };
 
   return (
@@ -163,10 +235,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Nav Sections */}
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
           {navSections.map((section, idx) => {
-            const filteredItems = section.items.filter((item) =>
-              hasAnyPermission(item.resource)
+            const filteredEntries = section.items.filter((entry) =>
+              hasAnyPermission(entry.resource)
             );
-            if (filteredItems.length === 0) return null;
+            if (filteredEntries.length === 0) return null;
 
             return (
               <div key={idx} className="space-y-1">
@@ -175,25 +247,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     {section.title}
                   </h4>
                 )}
-                {filteredItems.map(({ to, label, icon: Icon }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === "/"}
-                    className={({ isActive }) =>
-                      cn(
-                        "flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-all group relative",
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-sm font-semibold"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                        sidebarCollapsed && "justify-center px-2"
-                      )
-                    }
-                  >
-                    <Icon className="h-4 w-4 shrink-0 transition-transform group-hover:scale-110" />
-                    {!sidebarCollapsed && <span>{label}</span>}
-                  </NavLink>
-                ))}
+                {filteredEntries.map((entry) => renderNavEntry(entry, false))}
               </div>
             );
           })}
@@ -248,10 +302,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
               <div className="space-y-4">
                 {navSections.map((section, idx) => {
-                  const filteredItems = section.items.filter((item) =>
-                    hasAnyPermission(item.resource)
+                  const filteredEntries = section.items.filter((entry) =>
+                    hasAnyPermission(entry.resource)
                   );
-                  if (filteredItems.length === 0) return null;
+                  if (filteredEntries.length === 0) return null;
 
                   return (
                     <div key={idx} className="space-y-1">
@@ -260,25 +314,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                           {section.title}
                         </h4>
                       )}
-                      {filteredItems.map(({ to, label, icon: Icon }) => (
-                        <NavLink
-                          key={to}
-                          to={to}
-                          end={to === "/"}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                          className={({ isActive }) =>
-                            cn(
-                              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium transition-colors",
-                              isActive
-                                ? "bg-primary text-primary-foreground font-semibold shadow-sm"
-                                : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                            )
-                          }
-                        >
-                          <Icon className="h-4 w-4 shrink-0" />
-                          <span>{label}</span>
-                        </NavLink>
-                      ))}
+                      {filteredEntries.map((entry) => renderNavEntry(entry, true))}
                     </div>
                   );
                 })}

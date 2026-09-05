@@ -89,7 +89,7 @@ function formatDuration(sec: number) {
 
 export default function Audiobooks() {
   const qc = useQueryClient();
-  const { user, permissions } = useAuth();
+  const { user, token, permissions } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tous");
   const [page, setPage] = useState(1);
@@ -538,8 +538,16 @@ export default function Audiobooks() {
         }}
         editingAudiobook={editingBook}
         currentUser={user}
+        token={token}
         authorOptions={authorOptions}
-        apiBaseUrl={import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:3022"}
+        apiBaseUrl={api.defaults.baseURL || import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "http://localhost:3022"}
+        onSubmitOverride={async (payload, isEditing, bookId) => {
+          if (isEditing && bookId) {
+            await api.put(`/audiobooks/${bookId}`, payload);
+          } else {
+            await api.post(`/audiobooks`, payload);
+          }
+        }}
       />
 
       {/* Delete Confirmation Dialog */}

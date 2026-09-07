@@ -119,7 +119,7 @@ export default function Users() {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const roleName = role.toUpperCase();
-    const systemRoles = ["ADMIN", "SUPER_ADMIN", "ARTIST", "AUTHOR", "CREATOR", "USER"].includes(roleName)
+    const systemRoles = ["ADMIN", "SUPER_ADMIN", "ARTIST", "AUTHOR", "CREATOR", "ACADEMIC", "USER"].includes(roleName)
       ? [roleName]
       : [];
 
@@ -361,11 +361,12 @@ export default function Users() {
                     { value: "ARTIST", label: "ARTIST (Système - Chanteur / Interprète)" },
                     { value: "AUTHOR", label: "AUTHOR (Système - Auteur / Écrivain)" },
                     { value: "CREATOR", label: "CREATOR (Système - Vidéaste / Chaîne)" },
+                    { value: "ACADEMIC", label: "ACADEMIC (Système - Formateur / Enseignant)" },
                     { value: "USER", label: "USER (Système - Auditeur / Public)" },
                     ...(rolesQuery.data || [])
                       .filter(
                         (r) =>
-                          !["SUPER_ADMIN", "ADMIN", "ARTIST", "AUTHOR", "CREATOR", "USER"].includes(
+                          !["SUPER_ADMIN", "ADMIN", "ARTIST", "AUTHOR", "CREATOR", "ACADEMIC", "USER"].includes(
                             r.name.toUpperCase(),
                           ),
                       )

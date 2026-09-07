@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
-import { Lock, Save, Sparkles, Music, BookOpen, Video, ShieldCheck, Check } from "lucide-react";
+import { Lock, Save, Sparkles, Music, BookOpen, Video, ShieldCheck, Check, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ProfileSettings() {
@@ -236,6 +236,39 @@ export default function ProfileSettings() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   Réservé à la publication et gestion de vidéos, podcasts visuels et chaînes.
+                </p>
+              </div>
+            </div>
+
+            {/* ACADEMIC */}
+            <div
+              onClick={() => handleToggleRole("ACADEMIC")}
+              className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                systemRoles.includes("ACADEMIC")
+                  ? "bg-primary/10 border-primary shadow-sm"
+                  : "bg-muted/30 hover:bg-muted/60 border-border"
+              }`}
+            >
+              <div
+                className={`p-2 rounded-lg shrink-0 ${
+                  systemRoles.includes("ACADEMIC")
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold">Formateur (Académique & LMS)</h4>
+                  {systemRoles.includes("ACADEMIC") && (
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-primary">
+                      <Check className="w-3.5 h-3.5" /> Actif
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Autorise la création, la publication et la gestion de formations, cours, modules et syllabus.
                 </p>
               </div>
             </div>

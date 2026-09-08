@@ -624,12 +624,21 @@ export default function Videos() {
 
   // Options for dropdowns
   const channelOptions = [
-    { value: "", label: "— Sélectionner une chaîne —" },
+    { value: "", label: "— Sélectionner une chaîne (Créateur) —" },
   ].concat(
-    (channelsQuery.data || []).map((c) => ({
-      value: c.id,
-      label: `${c.name} (${c.user?.name || c.user?.email || "Créateur"})`,
-    }))
+    (channelsQuery.data || [])
+      .filter((c) => {
+        const sysRoles = (c.user as any)?.systemRoles || [];
+        const rName = c.user?.role?.name;
+        if (sysRoles.length > 0 || rName) {
+          return sysRoles.includes("CREATOR") || rName === "CREATOR" || rName === "ADMIN";
+        }
+        return true;
+      })
+      .map((c) => ({
+        value: c.id,
+        label: `${c.name} (${c.user?.name || c.user?.email || "Créateur"})`,
+      }))
   );
 
   const userOptions = [{ value: "", label: "— Choisir un utilisateur —" }].concat(

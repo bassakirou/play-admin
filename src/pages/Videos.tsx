@@ -17,9 +17,10 @@ import { Textarea } from "../components/ui/textarea";
 import { Select } from "../components/ui/select";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { FileDropzone } from "../components/ui/file-dropzone";
-import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X, HelpCircle } from "lucide-react";
+import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X, HelpCircle, BarChart3 } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
-import { VideoQualityVariants, type VideoSourceAnalysis, type QualityTier } from "@pyramidplay/ui";
+import { VideoQualityVariants, type VideoSourceAnalysis, type QualityTier, TableSkeleton } from "@pyramidplay/ui";
+import { VideoStatsDialog } from "../components/videos/VideoStatsDialog";
 
 type Channel = {
   id: string;
@@ -86,6 +87,7 @@ export default function Videos() {
   const [showForm, setShowForm] = useState(false);
   const [showMediaGuide, setShowMediaGuide] = useState(false);
   const [editing, setEditing] = useState<Video | null>(null);
+  const [statsTarget, setStatsTarget] = useState<Video | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Video | null>(null);
   const [sourceAnalysis, setSourceAnalysis] = useState<VideoSourceAnalysis | null>(null);
@@ -718,7 +720,7 @@ export default function Videos() {
           )}
 
           {videosLoading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Chargement des vidéos…</p>
+            <TableSkeleton rows={6} cols={8} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -805,6 +807,15 @@ export default function Videos() {
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setStatsTarget(v)}
+                                className="h-8 w-8 hover:border-indigo-400 hover:text-indigo-400"
+                                title="Statistiques de la vidéo"
+                              >
+                                <BarChart3 className="w-4 h-4" />
+                              </Button>
                               {canUpdate && (
                                 <Button
                                   variant="outline"
@@ -1354,6 +1365,13 @@ export default function Videos() {
       <MediaSpecificationsDialog
         open={showMediaGuide}
         onOpenChange={setShowMediaGuide}
+      />
+
+      {/* Video Analytics & Stats Modal */}
+      <VideoStatsDialog
+        open={!!statsTarget}
+        onOpenChange={(open) => !open && setStatsTarget(null)}
+        video={statsTarget}
       />
     </div>
   );

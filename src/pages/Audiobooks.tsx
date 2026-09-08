@@ -13,7 +13,7 @@ import { canAccess } from "../auth/rbac";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 import { CreatableOption } from "../components/ui/creatable-combobox";
-import { CreateAudiobookModal } from "@pyramidplay/ui";
+import { CreateAudiobookModal, MediaCardSkeleton } from "@pyramidplay/ui";
 import {
   BookHeadphones,
   Plus,
@@ -344,14 +344,7 @@ export default function Audiobooks() {
 
       {/* Audiobooks Grid */}
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-80 rounded-2xl bg-muted/40 animate-pulse border"
-            />
-          ))}
-        </div>
+        <MediaCardSkeleton count={8} variant="audiobook" />
       ) : paginated.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center space-y-3">

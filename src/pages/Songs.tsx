@@ -24,6 +24,7 @@ import { ImageDropzone } from "../components/ui/image-dropzone";
 import { MultiSelect } from "../components/ui/multi-select";
 import { HelpCircle, Play, Pause, Pencil, Trash2 } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
+import { TableSkeleton } from "@pyramidplay/ui";
 
 type Song = {
   id: string;
@@ -320,7 +321,7 @@ export default function Songs() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Chargement…</p>
+            <TableSkeleton rows={5} cols={4} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

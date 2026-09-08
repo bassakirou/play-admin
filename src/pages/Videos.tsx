@@ -320,7 +320,19 @@ export default function Videos() {
     }
   };
 
+  const areAllAllowedVariantsGenerated = useMemo(() => {
+    if (!sourceAnalysis?.allowedQualities || sourceAnalysis.allowedQualities.length === 0) {
+      return false;
+    }
+    return sourceAnalysis.allowedQualities.every((q) => !!qualityVariants[q]);
+  }, [sourceAnalysis, qualityVariants]);
+
   const onVideoSubmit = (values: VideoFormValues) => {
+    if (values.isPublished && !areAllAllowedVariantsGenerated) {
+      toast.error("Toutes les variantes de qualité doivent être générées avant la publication. Veuillez générer les variantes ou enregistrer en brouillon.");
+      return;
+    }
+
     const tags = (values.tagsInput || "")
       .split(",")
       .map((t) => t.trim())
@@ -454,26 +466,59 @@ export default function Videos() {
     setIsGeneratingVariants(true);
     setGeneratingQuality("all");
     try {
-      const res = await api.post("/files/generate-video-variants", {
-        url: targetUrl,
-      });
-      const data = res.data;
-      if (data?.masterUrl) {
-        form.setValue("videoUrl", data.masterUrl);
-        form.clearErrors("videoUrl");
-      }
-      if (data?.variants) {
-        setQualityVariants(data.variants);
-      }
-      if (data?.analysis) {
-        setSourceAnalysis(data.analysis);
-        if (data.analysis.duration > 0 && !form.watch("duration")) {
-          form.setValue("duration", data.analysis.duration);
+      // Step 1: Inspect/Analyze source resolution first to get allowedQualities
+      let currentAnalysis = sourceAnalysis;
+      if (!currentAnalysis?.allowedQualities || currentAnalysis.allowedQualities.length === 0) {
+        try {
+          const inspectRes = await api.post("/files/inspect-video-variants", { url: targetUrl });
+          if (inspectRes.data?.analysis) {
+            currentAnalysis = inspectRes.data.analysis;
+            setSourceAnalysis(inspectRes.data.analysis);
+            if (inspectRes.data.analysis.duration > 0 && !form.watch("duration")) {
+              form.setValue("duration", inspectRes.data.analysis.duration);
+            }
+          }
+        } catch {
+          // fallback
         }
       }
-      toast.success("Variantes de qualité HLS générées avec succès !");
+
+      const allowedTiers: QualityTier[] = currentAnalysis?.allowedQualities?.length
+        ? currentAnalysis.allowedQualities
+        : ["720p", "480p", "360p", "240p", "144p"];
+
+      toast.loading(`Génération des ${allowedTiers.length} qualités vidéo une par une...`, { id: "admin-variants-gen" });
+
+      // Step 2: Transcode each quality sequentially one-by-one from highest to lowest
+      for (const tier of allowedTiers) {
+        setGeneratingQuality(tier);
+        try {
+          const res = await api.post("/files/generate-video-variants", {
+            url: targetUrl,
+            targetQualities: [tier],
+          });
+          const data = res.data;
+          if (data?.variants?.[tier]) {
+            setQualityVariants((prev) => ({ ...prev, [tier]: data.variants[tier] }));
+          }
+          if (data?.masterUrl) {
+            form.setValue("videoUrl", data.masterUrl);
+            form.clearErrors("videoUrl");
+          }
+          if (data?.analysis) {
+            setSourceAnalysis(data.analysis);
+            if (data.analysis.duration > 0 && !form.watch("duration")) {
+              form.setValue("duration", data.analysis.duration);
+            }
+          }
+        } catch (tierErr: any) {
+          console.warn(`Échec de transcodage pour ${tier}:`, tierErr);
+        }
+      }
+
+      toast.success("Variantes de qualité HLS générées avec succès !", { id: "admin-variants-gen" });
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Échec de la génération des variantes");
+      toast.error(err?.response?.data?.message || "Échec de la génération des variantes", { id: "admin-variants-gen" });
     } finally {
       setIsGeneratingVariants(false);
       setGeneratingQuality(null);
@@ -1223,14 +1268,22 @@ export default function Videos() {
             />
           </div>
 
-          <div className="sm:col-span-2 flex items-center gap-2 pt-2">
-            <Checkbox
-              checked={!!form.watch("isPublished")}
-              onCheckedChange={(checked) =>
-                form.setValue("isPublished", checked)
-              }
-            />
-            <span className="text-sm font-medium">Publier immédiatement la vidéo</span>
+          <div className="sm:col-span-2 flex flex-col gap-1.5 pt-2">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={!!form.watch("isPublished")}
+                disabled={!areAllAllowedVariantsGenerated}
+                onCheckedChange={(checked) =>
+                  form.setValue("isPublished", checked)
+                }
+              />
+              <span className="text-sm font-medium">Publier immédiatement la vidéo</span>
+            </div>
+            {!areAllAllowedVariantsGenerated && (
+              <p className="text-xs text-amber-500 font-medium">
+                ⚠️ Toutes les variantes de qualité autorisées doivent être générées avant de pouvoir publier. La vidéo sera enregistrée en brouillon.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2 sm:col-span-2 pt-3 border-t mt-4">
@@ -1249,9 +1302,13 @@ export default function Videos() {
                   : "Création…"
                 : isGeneratingVariants
                 ? "Génération des qualités HLS en cours…"
+                : form.watch("isPublished") && areAllAllowedVariantsGenerated
+                ? editing
+                  ? "Mettre à jour & Publier"
+                  : "Publier la vidéo"
                 : editing
-                ? "Mettre à jour"
-                : "Créer la vidéo"}
+                ? "Mettre à jour le brouillon"
+                : "Enregistrer le brouillon"}
             </Button>
             <Button
               type="button"

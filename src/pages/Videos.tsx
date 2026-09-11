@@ -56,6 +56,7 @@ type Video = {
   duration: number;
   views: number;
   isPublished: boolean;
+  isAcademic?: boolean;
   userId?: string | null;
   user?: {
     id: string;
@@ -113,6 +114,7 @@ export default function Videos() {
     thumbnailUrl: z.string().optional().or(z.literal("")),
     videoUrl: z.string().min(1, "Le fichier vidéo est requis"),
     isPublished: z.boolean().optional(),
+    isAcademic: z.boolean().optional(),
   });
   type VideoFormValues = z.infer<typeof videoSchema>;
 
@@ -126,6 +128,7 @@ export default function Videos() {
     thumbnailUrl: "",
     videoUrl: "",
     isPublished: true,
+    isAcademic: false,
   };
 
   const form = useForm<VideoFormValues>({
@@ -280,6 +283,7 @@ export default function Videos() {
       thumbnailUrl: v.thumbnailUrl || "",
       videoUrl: v.videoUrl || "",
       isPublished: v.isPublished,
+      isAcademic: Boolean(v.isAcademic),
     });
 
     // Optimistic fallback for HLS streams so cards and previews display immediately
@@ -350,6 +354,7 @@ export default function Videos() {
       thumbnailUrl: values.thumbnailUrl || undefined,
       videoUrl: values.videoUrl,
       isPublished: !!values.isPublished,
+      isAcademic: Boolean(values.isAcademic),
     });
   };
 
@@ -821,15 +826,22 @@ export default function Videos() {
                           <td className="p-3 text-muted-foreground font-mono">{v.duration}s</td>
                           <td className="p-3 text-muted-foreground font-mono">{v.views}</td>
                           <td className="p-3">
-                            <span
-                              className={
-                                v.isPublished
-                                  ? "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                                  : "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                              }
-                            >
-                              {v.isPublished ? "Publié" : "Brouillon"}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {v.isAcademic && (
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                  Académique
+                                </span>
+                              )}
+                              <span
+                                className={
+                                  v.isPublished
+                                    ? "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                                    : "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                                }
+                              >
+                                {v.isPublished ? "Publié" : "Brouillon"}
+                              </span>
+                            </div>
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1.5 flex-nowrap">
@@ -1342,6 +1354,22 @@ export default function Videos() {
                 ⚠️ Toutes les variantes de qualité autorisées doivent être générées avant de pouvoir publier. La vidéo sera enregistrée en brouillon.
               </p>
             )}
+          </div>
+
+          <div className="sm:col-span-2 flex items-center gap-3 p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 transition-all">
+            <Checkbox
+              id="admin-video-isAcademic"
+              checked={!!form.watch("isAcademic")}
+              onCheckedChange={(checked) =>
+                form.setValue("isAcademic", !!checked)
+              }
+            />
+            <label
+              htmlFor="admin-video-isAcademic"
+              className="text-sm font-medium text-emerald-600 dark:text-emerald-400 cursor-pointer select-none"
+            >
+              Marquer comme "Académique" (Vidéo Éducative / Tutoriel / Cours)
+            </label>
           </div>
 
           <div className="flex gap-2 sm:col-span-2 pt-3 border-t mt-4">

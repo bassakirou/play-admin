@@ -19,7 +19,7 @@ import { ImageDropzone } from "../components/ui/image-dropzone";
 import { FileDropzone } from "../components/ui/file-dropzone";
 import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X, HelpCircle, BarChart3 } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
-import { VideoQualityVariants, type VideoSourceAnalysis, type QualityTier, TableSkeleton } from "@pyramidplay/ui";
+import { CreatableCombobox, CreatableMultiCombobox, VideoQualityVariants, type CreatableOption, type VideoSourceAnalysis, type QualityTier, TableSkeleton } from "@pyramidplay/ui";
 import { VideoStatsDialog } from "../components/videos/VideoStatsDialog";
 
 type Channel = {
@@ -108,7 +108,7 @@ export default function Videos() {
     description: z.string().optional(),
     channelId: z.string().min(1, "La chaîne de publication est requise"),
     category: z.string().optional(),
-    tagsInput: z.string().optional(),
+    tags: z.array(z.string()).max(20, "20 tags maximum").default([]),
     duration: z.coerce.number().int().min(0).default(0),
     thumbnailUrl: z.string().optional().or(z.literal("")),
     videoUrl: z.string().min(1, "Le fichier vidéo est requis"),
@@ -121,7 +121,7 @@ export default function Videos() {
     description: "",
     channelId: "",
     category: "",
-    tagsInput: "",
+    tags: [],
     duration: 0,
     thumbnailUrl: "",
     videoUrl: "",
@@ -170,6 +170,11 @@ export default function Videos() {
   const usersQuery = useQuery({
     queryKey: ["users-all"],
     queryFn: async () => (await api.get("/users")).data as UserItem[],
+  });
+
+  const taxonomyQuery = useQuery({
+    queryKey: ["video-taxonomy"],
+    queryFn: async () => (await api.get("/videos/taxonomy")).data as { categories: { id: string; name: string }[]; tags: { id: string; name: string; categoryId?: string | null }[] },
   });
 
   // Mutations
@@ -248,16 +253,16 @@ export default function Videos() {
     setUploadProgress(null);
     setRawSourceUrl(v.videoUrl || "");
 
-    let tagsInput = "";
+    let tags: string[] = [];
     if (Array.isArray(v.tags)) {
-      tagsInput = v.tags.filter(Boolean).join(", ");
+      tags = v.tags.filter((tag): tag is string => typeof tag === "string" && Boolean(tag));
     } else if (typeof v.tags === "string") {
       try {
         const parsed = JSON.parse(v.tags);
-        if (Array.isArray(parsed)) tagsInput = parsed.filter(Boolean).join(", ");
-        else tagsInput = v.tags;
+        if (Array.isArray(parsed)) tags = parsed.filter((tag): tag is string => typeof tag === "string" && Boolean(tag));
+        else tags = [v.tags];
       } catch {
-        tagsInput = v.tags;
+        tags = [v.tags];
       }
     }
 
@@ -270,7 +275,7 @@ export default function Videos() {
       description: v.description || "",
       channelId: currentChannel?.id || v.user?.artistProfile?.id || "",
       category: v.category || "",
-      tagsInput,
+      tags,
       duration: v.duration || 0,
       thumbnailUrl: v.thumbnailUrl || "",
       videoUrl: v.videoUrl || "",
@@ -335,17 +340,12 @@ export default function Videos() {
       return;
     }
 
-    const tags = (values.tagsInput || "")
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-
     saveVideoMutation.mutate({
       title: values.title,
       description: values.description || undefined,
       channelId: values.channelId,
       category: values.category || undefined,
-      tags,
+      tags: values.tags,
       duration: values.duration,
       thumbnailUrl: values.thumbnailUrl || undefined,
       videoUrl: values.videoUrl,
@@ -1144,14 +1144,26 @@ export default function Videos() {
 
           <div className="space-y-1">
             <label className="text-sm font-medium">Catégorie</label>
-            <Input placeholder="Ex: Clip, Live, Interview, Vlog, Tutoriel..." {...form.register("category")} />
+            <CreatableCombobox
+              options={(taxonomyQuery.data?.categories || []).map((category): CreatableOption => ({ value: category.id, label: category.name }))}
+              value={form.watch("category") || ""}
+              onChange={(category) => form.setValue("category", category, { shouldDirty: true })}
+              placeholder="Sélectionner ou créer une catégorie…"
+              searchPlaceholder="Rechercher ou créer une catégorie…"
+            />
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">Tags</label>
-            <Input
-              placeholder="Tags séparés par des virgules (ex: afrobeats, concert, 2026)"
-              {...form.register("tagsInput")}
+            <label className="text-sm font-medium">Tags <span className="text-muted-foreground">(20 maximum)</span></label>
+            <CreatableMultiCombobox
+              options={(taxonomyQuery.data?.tags || [])
+                .filter((tag) => !form.watch("category") || !tag.categoryId || taxonomyQuery.data?.categories.some((category) => category.id === tag.categoryId && category.name === form.watch("category")))
+                .map((tag): CreatableOption => ({ value: tag.id, label: tag.name }))}
+              values={form.watch("tags") || []}
+              onChange={(tags) => form.setValue("tags", tags, { shouldDirty: true, shouldValidate: true })}
+              max={20}
+              placeholder="Sélectionner ou créer des tags…"
+              searchPlaceholder="Rechercher ou créer un tag…"
             />
           </div>
 

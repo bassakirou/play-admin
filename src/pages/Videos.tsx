@@ -489,19 +489,31 @@ export default function Videos() {
         ? currentAnalysis.allowedQualities
         : ["720p", "480p", "360p", "240p", "144p"];
 
+      // Step 2: Compute stable mediaId to group all quality tiers under the exact same folder
+      let activeMediaId = "";
+      const hlsMatch = (targetUrl || "").match(/\/hls\/([a-zA-Z0-9_-]+)/);
+      if (hlsMatch && hlsMatch[1]) {
+        activeMediaId = hlsMatch[1];
+      } else {
+        activeMediaId = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
       toast.loading(`Génération des ${allowedTiers.length} qualités vidéo une par une...`, { id: "admin-variants-gen" });
 
-      // Step 2: Transcode each quality sequentially one-by-one from highest to lowest
+      // Step 3: Transcode each quality sequentially one-by-one from highest to lowest
       for (const tier of allowedTiers) {
         setGeneratingQuality(tier);
         try {
           const res = await api.post("/files/generate-video-variants", {
             url: targetUrl,
+            mediaId: activeMediaId,
             targetQualities: [tier],
           });
           const data = res.data;
-          if (data?.variants?.[tier]) {
-            setQualityVariants((prev) => ({ ...prev, [tier]: data.variants[tier] }));
+          if (data?.variants) {
+            setQualityVariants((prev) => ({ ...prev, ...data.variants }));
           }
           if (data?.masterUrl) {
             form.setValue("videoUrl", data.masterUrl);
@@ -535,14 +547,28 @@ export default function Videos() {
     }
     setIsGeneratingVariants(true);
     setGeneratingQuality(quality);
+
+    let activeMediaId = "";
+    const hlsMatch =
+      (targetUrl || "").match(/\/hls\/([a-zA-Z0-9_-]+)/) ||
+      Object.values(qualityVariants).find((u) => u?.includes("/hls/"))?.match(/\/hls\/([a-zA-Z0-9_-]+)/);
+    if (hlsMatch && hlsMatch[1]) {
+      activeMediaId = hlsMatch[1];
+    } else {
+      activeMediaId = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
     try {
       const res = await api.post("/files/generate-video-variants", {
         url: targetUrl,
+        mediaId: activeMediaId,
         targetQualities: [quality],
       });
       const data = res.data;
-      if (data?.variants?.[quality]) {
-        setQualityVariants((prev) => ({ ...prev, [quality]: data.variants[quality] }));
+      if (data?.variants) {
+        setQualityVariants((prev) => ({ ...prev, ...data.variants }));
       }
       if (data?.masterUrl) {
         form.setValue("videoUrl", data.masterUrl);

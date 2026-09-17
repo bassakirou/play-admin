@@ -20,6 +20,7 @@ import ProfileSettings from "./pages/ProfileSettings";
 import Changelog from "./pages/Changelog";
 import Audiobooks from "./pages/Audiobooks";
 import MediaSpecifications from "./pages/MediaSpecifications";
+import ShareSettings from "./pages/ShareSettings";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -195,6 +196,16 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <MediaSpecifications />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/share-settings",
+    element: (
+      <RootLayout>
+        <Protected>
+          <ShareSettings />
         </Protected>
       </RootLayout>
     ),

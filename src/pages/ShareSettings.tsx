@@ -21,6 +21,8 @@ import {
   Pencil,
   Trash2,
   HelpCircle,
+  Sliders,
+  Sparkles,
 } from "lucide-react";
 
 export interface SharePlatform {
@@ -38,6 +40,12 @@ export interface SharePlatform {
   defaultHashtags?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ShareModalConfig {
+  id: string;
+  showMediaPreview: boolean;
+  showCustomization: boolean;
 }
 
 export default function ShareSettings() {
@@ -58,6 +66,27 @@ export default function ShareSettings() {
   const [includeAuthor, setIncludeAuthor] = useState(true);
   const [includeDescription, setIncludeDescription] = useState(false);
   const [defaultHashtags, setDefaultHashtags] = useState("");
+
+  const { data: modalConfig } = useQuery({
+    queryKey: ["share-modal-config"],
+    queryFn: async () => {
+      const res = await api.get("/share-settings/config");
+      return res.data as ShareModalConfig;
+    },
+  });
+
+  const updateConfigMutation = useMutation({
+    mutationFn: async (payload: Partial<ShareModalConfig>) => {
+      return (await api.patch("/share-settings/config", payload)).data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["share-modal-config"] });
+      toast.success("Configuration du modal de partage mise à jour");
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Erreur lors de la mise à jour");
+    },
+  });
 
   const { data: platforms, isLoading } = useQuery({
     queryKey: ["share-platforms-admin"],
@@ -187,6 +216,58 @@ export default function ShareSettings() {
           Ajouter une plateforme
         </Button>
       </div>
+
+      {/* Options d'affichage du Modal de Partage */}
+      <Card className="border-border">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sliders className="w-5 h-5 text-primary" />
+            <CardTitle>Affichage du modal de partage (Public)</CardTitle>
+          </div>
+          <CardDescription>
+            Activez ou désactivez globalement l'affichage des blocs dans la fenêtre de partage pour l'application publique. Par défaut, le modal est en mode simplifié.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border bg-muted/20">
+            <div className="space-y-0.5 max-w-xl">
+              <Label className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Bloc 1 : Aperçu du média (Titre, Auteur, Miniature, Lien)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Affiche l'encadré visuel contenant la miniature, le type de média, le titre et le lien en haut du modal de partage.
+              </p>
+            </div>
+            <Switch
+              checked={modalConfig?.showMediaPreview ?? false}
+              onCheckedChange={(val: boolean) =>
+                updateConfigMutation.mutate({ showMediaPreview: val })
+              }
+              disabled={updateConfigMutation.isPending}
+            />
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border bg-muted/20">
+            <div className="space-y-0.5 max-w-xl">
+              <Label className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Bloc 2 : Personnalisation des éléments inclus (Cases à cocher)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Affiche les cases à cocher permettant aux utilisateurs de personnaliser les informations incluses dans le texte de partage (Titre, Artiste, Description, Hashtags).
+              </p>
+            </div>
+            <Switch
+              checked={modalConfig?.showCustomization ?? false}
+              onCheckedChange={(val: boolean) =>
+                updateConfigMutation.mutate({ showCustomization: val })
+              }
+              disabled={updateConfigMutation.isPending}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

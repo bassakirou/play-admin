@@ -17,7 +17,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Select } from "../components/ui/select";
 import { ImageDropzone } from "../components/ui/image-dropzone";
 import { FileDropzone } from "../components/ui/file-dropzone";
-import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X, HelpCircle, BarChart3 } from "lucide-react";
+import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon, X, HelpCircle, BarChart3, AlertTriangle } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 import { CreatableCombobox, CreatableMultiCombobox, VideoQualityVariants, type CreatableOption, type VideoSourceAnalysis, type QualityTier, TableSkeleton } from "@pyramidplay/ui";
 import { VideoStatsDialog } from "../components/videos/VideoStatsDialog";
@@ -1350,8 +1350,9 @@ export default function Videos() {
               <span className="text-sm font-medium">Publier immédiatement la vidéo</span>
             </div>
             {!areAllAllowedVariantsGenerated && (
-              <p className="text-xs text-amber-500 font-medium">
-                ⚠️ Toutes les variantes de qualité autorisées doivent être générées avant de pouvoir publier. La vidéo sera enregistrée en brouillon.
+              <p className="text-xs text-amber-500 font-medium flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>Toutes les variantes de qualité autorisées doivent être générées avant de pouvoir publier. La vidéo sera enregistrée en brouillon.</span>
               </p>
             )}
           </div>

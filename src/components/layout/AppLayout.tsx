@@ -19,6 +19,7 @@ import {
   Activity,
   BookHeadphones,
   Share2,
+  Radio,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { cn } from "../../lib/utils";
@@ -107,6 +108,7 @@ const navSections: NavSection[] = [
       { to: "/maintenance", label: "Maintenance", icon: BellRing, resource: null },
       { to: "/migration", label: "Migration & Backup", icon: Download, resource: null },
       { to: "/share-settings", label: "Réseaux de Partage", icon: Share2, resource: null },
+      { to: "/live-settings", label: "Gestion des Lives", icon: Radio, resource: null },
       { to: "/changelog", label: "Mises à jour", icon: Activity, resource: null },
     ],
   },

@@ -21,6 +21,7 @@ import Changelog from "./pages/Changelog";
 import Audiobooks from "./pages/Audiobooks";
 import MediaSpecifications from "./pages/MediaSpecifications";
 import ShareSettings from "./pages/ShareSettings";
+import LiveSettings from "./pages/LiveSettings";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -206,6 +207,16 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <ShareSettings />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/live-settings",
+    element: (
+      <RootLayout>
+        <Protected>
+          <LiveSettings />
         </Protected>
       </RootLayout>
     ),

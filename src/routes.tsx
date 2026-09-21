@@ -22,6 +22,7 @@ import Audiobooks from "./pages/Audiobooks";
 import MediaSpecifications from "./pages/MediaSpecifications";
 import ShareSettings from "./pages/ShareSettings";
 import LiveSettings from "./pages/LiveSettings";
+import Monetization from "./pages/Monetization";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -217,6 +218,16 @@ export const router = createBrowserRouter([
       <RootLayout>
         <Protected>
           <LiveSettings />
+        </Protected>
+      </RootLayout>
+    ),
+  },
+  {
+    path: "/monetization",
+    element: (
+      <RootLayout>
+        <Protected>
+          <Monetization />
         </Protected>
       </RootLayout>
     ),

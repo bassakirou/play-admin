@@ -9,6 +9,7 @@ type User = {
   roleId?: string
   roleObject?: any
   name?: string
+  systemRoles?: string[]
 }
 
 type AuthContextType = {

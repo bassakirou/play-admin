@@ -20,6 +20,7 @@ import {
   BookHeadphones,
   Share2,
   Radio,
+  Coins,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { cn } from "../../lib/utils";
@@ -103,6 +104,7 @@ const navSections: NavSection[] = [
   {
     title: "Administration",
     items: [
+      { to: "/monetization", label: "Monétisation & Finance", icon: Coins, resource: "super_admin_only" },
       { to: "/users", label: "Utilisateurs", icon: Users, resource: "user" },
       { to: "/roles", label: "Rôles & Droits", icon: Shield, resource: "role" },
       { to: "/maintenance", label: "Maintenance", icon: BellRing, resource: null },
@@ -129,6 +131,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!resource) return true;
     const roleName =
       typeof user?.role === "string" ? user?.role : user?.role?.name;
+    if (resource === "super_admin_only") {
+      return roleName === "SUPER_ADMIN" || user?.systemRoles?.includes("SUPER_ADMIN");
+    }
     return ["create", "read", "update", "delete", "manage"].some((action) =>
       canAccess(roleName, permissions, action as any, resource as RBACResource),
     );
@@ -138,6 +143,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const getCurrentTitle = () => {
     const p = location.pathname;
     if (p === "/") return "Tableau de bord";
+    if (p.startsWith("/monetization")) return "Monétisation & Finance (Super Admin)";
     if (p.startsWith("/songs")) return "Singles & Morceaux";
     if (p.startsWith("/albums")) return "Albums";
     if (p.startsWith("/audiobooks")) return "Livres Audio";

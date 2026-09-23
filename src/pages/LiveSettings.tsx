@@ -34,6 +34,8 @@ export interface LiveSettingsConfig {
   updatedAt?: string;
 }
 
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
+
 export default function LiveSettings() {
   const qc = useQueryClient();
 
@@ -50,6 +52,8 @@ export default function LiveSettings() {
   const [enableRetention0Days, setEnableRetention0Days] = useState(true);
   const [enableRetention3Days, setEnableRetention3Days] = useState(true);
   const [enableRetention7Days, setEnableRetention7Days] = useState(true);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   useEffect(() => {
     if (config) {
@@ -61,12 +65,57 @@ export default function LiveSettings() {
     }
   }, [config]);
 
+  // Détection des modifications non enregistrées
+  const initialMaxDuration = config?.maxDurationMinutes ?? 60;
+  const initialMaxViewers = config?.maxViewers ?? 500;
+  const initialRet0 = config?.enableRetention0Days ?? true;
+  const initialRet3 = config?.enableRetention3Days ?? true;
+  const initialRet7 = config?.enableRetention7Days ?? true;
+
+  const hasChanges =
+    !isLoading &&
+    !!config &&
+    (maxDurationMinutes !== initialMaxDuration ||
+      maxViewers !== initialMaxViewers ||
+      enableRetention0Days !== initialRet0 ||
+      enableRetention3Days !== initialRet3 ||
+      enableRetention7Days !== initialRet7);
+
+  // Avertir l'utilisateur s'il tente de rafraîchir ou quitter avec des modifications non enregistrées
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasChanges]);
+
+  // Intercepter les clics sur les liens internes du panneau d'administration si des changements sont en cours
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (!hasChanges) return;
+      const target = (e.target as HTMLElement).closest("a");
+      if (target && target.href && !target.href.includes("/live-settings")) {
+        e.preventDefault();
+        e.stopPropagation();
+        setPendingNavigation(target.href);
+        setShowExitConfirm(true);
+      }
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [hasChanges]);
+
   const updateMutation = useMutation({
     mutationFn: async (payload: Partial<LiveSettingsConfig>) => {
       const res = await api.patch("/lives/config", payload);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      qc.setQueryData(["live-settings-config"], updated);
       qc.invalidateQueries({ queryKey: ["live-settings-config"] });
       toast.success("Paramètres des Lives enregistrés avec succès.");
     },
@@ -76,8 +125,9 @@ export default function LiveSettings() {
     },
   });
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!hasChanges || updateMutation.isPending) return;
     updateMutation.mutate({
       maxDurationMinutes: Number(maxDurationMinutes) || 60,
       maxViewers: Number(maxViewers) || 0,
@@ -89,6 +139,23 @@ export default function LiveSettings() {
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Dialogue de confirmation en cas de sortie avec modifications non enregistrées */}
+      <ConfirmDialog
+        open={showExitConfirm}
+        onOpenChange={setShowExitConfirm}
+        title="Modifications non enregistrées"
+        description="Vous avez apporté des modifications à la configuration des lives sans les enregistrer. Si vous quittez cette page maintenant, vos changements seront perdus."
+        confirmText="Quitter sans enregistrer"
+        cancelText="Rester sur la page"
+        variant="destructive"
+        onConfirm={() => {
+          setShowExitConfirm(false);
+          if (pendingNavigation) {
+            window.location.href = pendingNavigation;
+          }
+        }}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -103,9 +170,13 @@ export default function LiveSettings() {
 
         <Button
           type="button"
-          onClick={handleSave}
-          disabled={updateMutation.isPending || isLoading}
-          className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-6 shadow-md flex items-center gap-2"
+          onClick={() => handleSave()}
+          disabled={!hasChanges || updateMutation.isPending || isLoading}
+          className={`font-bold px-6 shadow-md flex items-center gap-2 transition-all ${
+            !hasChanges || isLoading
+              ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none"
+              : "bg-amber-500 hover:bg-amber-600 text-slate-950 hover:scale-105"
+          }`}
         >
           <Save className="w-4 h-4" />
           {updateMutation.isPending ? "Enregistrement..." : "Enregistrer"}

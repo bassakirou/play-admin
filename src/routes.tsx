@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import VideoDelivery from './pages/VideoDelivery';
 import { useAuth } from "./auth/AuthContext";
 import AppLayout from "./components/layout/AppLayout";
 import Songs from "./pages/Songs";
@@ -36,6 +37,7 @@ function RootLayout({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
+  { path: '/video-delivery', element: <RootLayout><Protected><VideoDelivery /></Protected></RootLayout> },
   {
     path: "/",
     element: (

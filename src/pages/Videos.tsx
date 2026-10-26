@@ -93,6 +93,10 @@ export default function Videos() {
   const [deleteTarget, setDeleteTarget] = useState<Video | null>(null);
   const [sourceAnalysis, setSourceAnalysis] = useState<VideoSourceAnalysis | null>(null);
   const [rawSourceUrl, setRawSourceUrl] = useState<string>("");
+  const [mediaAssetId, setMediaAssetId] = useState<string | undefined>();
+  const deliveryConfig = useQuery({ queryKey: ['video-delivery-config'], queryFn: async () =>
+    (await api.get('/video-delivery/configuration')).data as { cloudflareEnabled: boolean } });
+  const usesCloudflare = !!mediaAssetId && (!!deliveryConfig.data?.cloudflareEnabled || (editing as Video & { delivery?: { provider: string } })?.delivery?.provider === 'CLOUDFLARE');
   const [qualityVariants, setQualityVariants] = useState<Partial<Record<QualityTier, string>>>({});
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
   const [generatingQuality, setGeneratingQuality] = useState<QualityTier | "all" | null>(null);
@@ -188,14 +192,14 @@ export default function Videos() {
       }
       return (await api.post("/videos", payload)).data;
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       qc.invalidateQueries({ queryKey: ["videos"] });
       qc.invalidateQueries({ queryKey: ["channels-all"] });
       setShowForm(false);
       setEditing(null);
       setUploadProgress(null);
       form.reset(EMPTY_VIDEO_FORM);
-      toast.success(editing ? "Vidéo mise à jour" : "Vidéo créée");
+      toast.success(saved?.publishWhenReady ? 'Vidéo enregistrée. Publication après préparation de la diffusion.' : editing ? "Vidéo mise à jour" : "Vidéo créée");
     },
     onError: () => toast.error("Échec de sauvegarde de la vidéo"),
   });
@@ -230,6 +234,7 @@ export default function Videos() {
 
   // Video Handlers
   const openCreateVideo = () => {
+    setMediaAssetId(undefined);
     setEditing(null);
     setUploadProgress(null);
     setSourceAnalysis(null);
@@ -252,6 +257,7 @@ export default function Videos() {
   };
 
   const openEditVideo = async (v: Video) => {
+    setMediaAssetId((v as Video & { mediaAssetId?: string }).mediaAssetId);
     setEditing(v);
     setUploadProgress(null);
     setRawSourceUrl(v.videoUrl || "");
@@ -282,7 +288,7 @@ export default function Videos() {
       duration: v.duration || 0,
       thumbnailUrl: v.thumbnailUrl || "",
       videoUrl: v.videoUrl || "",
-      isPublished: v.isPublished,
+      isPublished: v.isPublished || !!(v as Video & { publishWhenReady?: boolean }).publishWhenReady,
       isAcademic: Boolean(v.isAcademic),
     });
 
@@ -332,11 +338,12 @@ export default function Videos() {
   };
 
   const areAllAllowedVariantsGenerated = useMemo(() => {
+    if (usesCloudflare) return true;
     if (!sourceAnalysis?.allowedQualities || sourceAnalysis.allowedQualities.length === 0) {
       return false;
     }
     return sourceAnalysis.allowedQualities.every((q) => !!qualityVariants[q]);
-  }, [sourceAnalysis, qualityVariants]);
+  }, [sourceAnalysis, qualityVariants, usesCloudflare]);
 
   const onVideoSubmit = (values: VideoFormValues) => {
     if (values.isPublished && !areAllAllowedVariantsGenerated) {
@@ -353,6 +360,7 @@ export default function Videos() {
       duration: values.duration,
       thumbnailUrl: values.thumbnailUrl || undefined,
       videoUrl: values.videoUrl,
+      mediaAssetId: mediaAssetId || null,
       isPublished: !!values.isPublished,
       isAcademic: Boolean(values.isAcademic),
     });
@@ -434,6 +442,7 @@ export default function Videos() {
         return;
       }
       const rawUrl = res.data?.rawUrl || url;
+      setMediaAssetId(res.data?.mediaAssetId);
       setRawSourceUrl(rawUrl);
       form.setValue("videoUrl", url);
       form.clearErrors("videoUrl");
@@ -454,6 +463,10 @@ export default function Videos() {
       }
 
       setUploadProgress(100);
+      if (deliveryConfig.data?.cloudflareEnabled && res.data?.mediaAssetId) {
+        toast.success("Original enregistré. La diffusion sera préparée après enregistrement de la vidéo.");
+        return;
+      }
       toast.success("Vidéo source uploadée. Encodage et génération des variantes HLS en cours...");
       
       // Auto-trigger HLS multi-quality generation immediately
@@ -1257,6 +1270,7 @@ export default function Videos() {
                 void uploadVideoFile(file, meta);
               }}
               onSelectedUrl={(url, meta) => {
+                setMediaAssetId(undefined);
                 form.setValue("videoUrl", url);
                 form.clearErrors("videoUrl");
                 if (meta?.duration) {
@@ -1267,6 +1281,7 @@ export default function Videos() {
               onSelectedLibraryItems={(items) => {
                 if (items[0]) {
                   const item = items[0];
+                  setMediaAssetId(item.id);
                   form.setValue("videoUrl", item.fileUrl);
                   form.clearErrors("videoUrl");
                   if (item.duration) {
@@ -1281,7 +1296,7 @@ export default function Videos() {
                   }
                   setRawSourceUrl(item.fileUrl);
                   toast.success(`Vidéo "${item.title || item.filename}" sélectionnée.`);
-                  void handleGenerateAllVariants(item.fileUrl);
+                  if (!deliveryConfig.data?.cloudflareEnabled) void handleGenerateAllVariants(item.fileUrl);
                 }
               }}
               initialItems={
@@ -1317,7 +1332,7 @@ export default function Videos() {
 
           {/* Variantes de Qualité Vidéo (1080p, 720p, 480p, 360p) */}
           <div className="sm:col-span-2 pt-2 border-t mt-2">
-            <VideoQualityVariants
+            {usesCloudflare ? <p className="text-sm text-muted-foreground">Original conservé dans MinIO. Les qualités de lecture seront préparées automatiquement ; la vidéo sera publiée lorsque le traitement sera terminé.</p> : <VideoQualityVariants
               sourceUrl={rawSourceUrl || form.watch("videoUrl")}
               analysis={sourceAnalysis}
               variants={qualityVariants}
@@ -1328,6 +1343,7 @@ export default function Videos() {
               onGenerateAll={handleGenerateAllVariants}
               onGenerateSingle={handleGenerateSingleVariant}
               onRemoveSource={() => {
+                setMediaAssetId(undefined);
                 form.setValue("videoUrl", "");
                 setRawSourceUrl("");
                 setSourceAnalysis(null);
@@ -1335,7 +1351,7 @@ export default function Videos() {
               }}
               isGenerating={isGeneratingVariants}
               generatingQuality={generatingQuality}
-            />
+            />}
           </div>
 
           <div className="sm:col-span-2 flex flex-col gap-1.5 pt-2">

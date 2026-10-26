@@ -80,6 +80,7 @@ const navSections: NavSection[] = [
     title: "Vue d'ensemble",
     items: [
       { to: "/", label: "Tableau de bord", icon: LayoutDashboard, resource: null },
+      { to: "/video-delivery", label: "Diffusion vidéo", icon: Activity, resource: "admin_only" },
     ],
   },
   {
@@ -131,6 +132,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!resource) return true;
     const roleName =
       typeof user?.role === "string" ? user?.role : user?.role?.name;
+    if (resource === 'admin_only') return roleName === 'ADMIN' || roleName === 'SUPER_ADMIN';
     if (resource === "super_admin_only") {
       return roleName === "SUPER_ADMIN" || user?.systemRoles?.includes("SUPER_ADMIN");
     }

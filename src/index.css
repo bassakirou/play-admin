@@ -76,3 +76,8 @@
 .dark .admin-main-bg {
   background-color: hsl(213 60% 10%) !important;
 }
+
+.monitoring-tabs { scrollbar-width: thin; scrollbar-color: hsl(var(--muted-foreground)) transparent; }
+.monitoring-tabs::-webkit-scrollbar { height: 4px; }
+.monitoring-tabs::-webkit-scrollbar-track { background: transparent; }
+.monitoring-tabs::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground)); border-radius: 4px; }

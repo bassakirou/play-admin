@@ -28,6 +28,7 @@ import { canAccess, RBACResource } from "../../auth/rbac";
 import { UserMenuPopover } from "./UserMenuPopover";
 import { QuickCreateMenu } from "./QuickCreateMenu";
 import { SidebarAccordion } from "@pyramidplay/ui";
+import MonitoringAlertBell from "../monitoring/MonitoringAlertBell";
 
 function useAdminTheme() {
   const [isDark, setIsDark] = useState(() =>
@@ -80,7 +81,7 @@ const navSections: NavSection[] = [
     title: "Vue d'ensemble",
     items: [
       { to: "/", label: "Tableau de bord", icon: LayoutDashboard, resource: null },
-      { to: "/video-delivery", label: "Diffusion vidéo", icon: Activity, resource: "admin_only" },
+      { to: "/video-delivery", label: "Supervision vidéo", icon: Activity, resource: "admin_only" },
     ],
   },
   {
@@ -145,6 +146,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const getCurrentTitle = () => {
     const p = location.pathname;
     if (p === "/") return "Tableau de bord";
+    if (p.startsWith("/video-delivery")) return "Supervision vidéo";
     if (p.startsWith("/monetization")) return "Monétisation & Finance (Super Admin)";
     if (p.startsWith("/songs")) return "Singles & Morceaux";
     if (p.startsWith("/albums")) return "Albums";
@@ -367,13 +369,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
             {/* Breadcrumb Title */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Administration</span>
-              <span className="text-xs text-muted-foreground">/</span>
-              <h1 className="text-sm font-semibold tracking-tight">{getCurrentTitle()}</h1>
+              <span className="hidden sm:inline text-xs font-medium text-muted-foreground">Administration</span>
+              <span className="hidden sm:inline text-xs text-muted-foreground">/</span>
+              <p className="text-sm font-semibold tracking-tight">{getCurrentTitle()}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <MonitoringAlertBell />
             <ThemeToggle />
           </div>
         </header>

@@ -101,9 +101,9 @@ export default function Monetization() {
 
   useEffect(() => {
     if (config) {
-      setTaraApiKey(config.taraApiKey || "");
+      setTaraApiKey("");
       setTaraBusinessId(config.taraBusinessId || "");
-      setTaraWebhookSecret(config.taraWebhookSecret || "");
+      setTaraWebhookSecret("");
       setTaraBaseUrl(config.taraBaseUrl || "https://www.dklo.co/api/tara");
       setTaraReturnUrl(config.taraReturnUrl || "");
       setTaraWebhookUrl(config.taraWebhookUrl || "");
@@ -502,7 +502,7 @@ export default function Monetization() {
                           </span>
                         </td>
                         <td className="p-3 text-right space-x-2">
-                          {w.status === "PENDING" && (
+                          {["PENDING", "APPROVED"].includes(w.status) && (
                             <>
                               <Button
                                 size="sm"
@@ -528,7 +528,7 @@ export default function Monetization() {
                               </Button>
                             </>
                           )}
-                          {w.status === "PAID" && (
+                          {["PAID", "PROCESSING", "INDETERMINATE"].includes(w.status) && (
                             <span className="text-[11px] text-muted-foreground font-mono">
                               Payout #{w.payoutId}
                             </span>
@@ -713,7 +713,7 @@ export default function Monetization() {
                   type="password"
                   value={taraApiKey}
                   onChange={(e) => setTaraApiKey(e.target.value)}
-                  placeholder="tara_live_... ou tara_sandbox_..."
+                  placeholder={config?.taraApiKeyConfigured ? "Clé enregistrée — laisser vide pour la conserver" : "Saisir la clé Tara"}
                   className="font-mono text-xs"
                 />
               </div>
@@ -734,7 +734,7 @@ export default function Monetization() {
                   type="password"
                   value={taraWebhookSecret}
                   onChange={(e) => setTaraWebhookSecret(e.target.value)}
-                  placeholder="whsec_..."
+                  placeholder={config?.taraWebhookSecretConfigured ? "Secret enregistré — laisser vide pour le conserver" : "Saisir le secret fourni par Tara"}
                   className="font-mono text-xs"
                 />
               </div>

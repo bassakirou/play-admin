@@ -21,6 +21,7 @@ type Job = {
   originalRetained: boolean;
   lastError: string | null;
   updatedAt: string;
+  progress?: { phase: string; percent: number | null };
 };
 type Overview = {
   configuration: {
@@ -51,6 +52,7 @@ export default function VideoDelivery() {
   const routing = useQuery({ queryKey: ['video-routing'], enabled: admin, queryFn: async () => (await api.get('/video-delivery/routing')).data });
   const candidates = useQuery({ queryKey: ['video-migrations'], enabled: admin, queryFn: async () => (await api.get('/video-delivery/migration-candidates')).data as { id: string; title: string; duration: number }[] });
   const [busy, setBusy] = useState(false);
+  const [details, setDetails] = useState<string | null>(null);
   const act = async (path: string, body?: unknown) => {
     setBusy(true); setActionError(null);
     try { await api.post(path, body); await Promise.all([queryClient.invalidateQueries({ queryKey: ['video-routing'] }), queryClient.invalidateQueries({ queryKey: ['video-migrations'] }), queryClient.invalidateQueries({ queryKey: ['video-delivery-overview'] })]); }
@@ -212,6 +214,13 @@ export default function VideoDelivery() {
                             {query.data.jobs.map((job) => (
                               <tr key={job.id} className="border-b">
                                 <td className="p-3">
+                                  <span className="mr-3 inline-flex items-center gap-2 align-middle" role="status" aria-label={job.progress?.percent != null ? `Encodage ${job.progress.percent} %` : labels[job.status]}>
+                                    <svg width="32" height="32" viewBox="0 0 36 36" aria-hidden="true" className={job.status === 'PROCESSING' && job.progress?.percent == null ? 'animate-spin motion-reduce:animate-none' : ''}>
+                                      <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted opacity-30" />
+                                      <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" pathLength="100" strokeDasharray={`${job.progress?.percent ?? (job.status === 'PROCESSING' ? 25 : 0)} 100`} strokeLinecap="round" transform="rotate(-90 18 18)" className="text-primary" />
+                                    </svg>
+                                    <span className="text-xs text-muted-foreground">{job.progress?.percent != null ? `${Math.round(job.progress.percent)} %` : job.progress?.phase === 'downloading' ? 'Transfert serveur' : labels[job.status]}</span>
+                                  </span>
                                   <span className="font-medium">
                                     {job.title}
                                   </span>
@@ -220,6 +229,7 @@ export default function VideoDelivery() {
                                       {job.lastError}
                                     </p>
                                   )}
+                                  {details === job.id && <p className="mt-2 text-xs text-muted-foreground">{job.status === 'PROCESSING' ? job.progress?.phase === 'downloading' ? 'Cloudflare récupère le fichier depuis le serveur. Pourcentage de transfert indisponible.' : 'Encodage chez Cloudflare. La progression sera actualisée automatiquement.' : labels[job.status]} · Traitement côté serveurs : vous pouvez fermer cette page. Référence : {job.id}</p>}
                                 </td>
                                 <td className="p-3">
                                   {labels[job.status] || job.status}
@@ -240,6 +250,7 @@ export default function VideoDelivery() {
                                   )}
                                 </td>
                                 <td className="p-3">
+                                  <Button size="sm" variant="ghost" onClick={() => setDetails(details === job.id ? null : job.id)}>{details === job.id ? 'Masquer' : 'Détails'}</Button>
                                   {job.status === "ERROR" && (
                                     <Button
                                       size="sm"

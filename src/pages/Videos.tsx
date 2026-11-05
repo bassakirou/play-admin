@@ -21,6 +21,7 @@ import { Tv, Film, Plus, Search, Pencil, Trash2, CheckCircle, Video as VideoIcon
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 import { CreatableCombobox, CreatableMultiCombobox, VideoQualityVariants, type CreatableOption, type VideoSourceAnalysis, type QualityTier, TableSkeleton } from "@pyramidplay/ui";
 import { VideoStatsDialog } from "../components/videos/VideoStatsDialog";
+import { videoEditSource } from "../lib/video-edit-source";
 
 type Channel = {
   id: string;
@@ -48,6 +49,9 @@ type Video = {
   title: string;
   description?: string | null;
   videoUrl?: string | null;
+  editSourceUrl?: string | null;
+  previewUrl?: string | null;
+  delivery?: { provider: string; status: string } | null;
   thumbnailUrl?: string | null;
   category?: string | null;
   tags?: unknown;
@@ -96,9 +100,11 @@ export default function Videos() {
   const [mediaAssetId, setMediaAssetId] = useState<string | undefined>();
   const deliveryConfig = useQuery({ queryKey: ['video-delivery-config'], queryFn: async () =>
     (await api.get('/video-delivery/configuration')).data as { cloudflareEnabled: boolean } });
-  const usesCloudflare = !!mediaAssetId && (!!deliveryConfig.data?.cloudflareEnabled || (editing as Video & { delivery?: { provider: string } })?.delivery?.provider === 'CLOUDFLARE');
+  const legacyLocalHls = !!editing && !editing.delivery && /\/hls\//.test(rawSourceUrl);
+  const usesCloudflare = !!mediaAssetId && !legacyLocalHls && (!!deliveryConfig.data?.cloudflareEnabled || editing?.delivery?.provider === 'CLOUDFLARE');
   const [qualityVariants, setQualityVariants] = useState<Partial<Record<QualityTier, string>>>({});
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
+  const [isInspectingVariants, setIsInspectingVariants] = useState(false);
   const [generatingQuality, setGeneratingQuality] = useState<QualityTier | "all" | null>(null);
 
   // Channels modal states
@@ -257,10 +263,11 @@ export default function Videos() {
   };
 
   const openEditVideo = async (v: Video) => {
+    const source = videoEditSource(v);
     setMediaAssetId((v as Video & { mediaAssetId?: string }).mediaAssetId);
     setEditing(v);
     setUploadProgress(null);
-    setRawSourceUrl(v.videoUrl || "");
+    setRawSourceUrl(source);
 
     let tags: string[] = [];
     if (Array.isArray(v.tags)) {
@@ -287,39 +294,21 @@ export default function Videos() {
       tags,
       duration: v.duration || 0,
       thumbnailUrl: v.thumbnailUrl || "",
-      videoUrl: v.videoUrl || "",
+      videoUrl: source,
       isPublished: v.isPublished || !!(v as Video & { publishWhenReady?: boolean }).publishWhenReady,
       isAcademic: Boolean(v.isAcademic),
     });
 
-    // Optimistic fallback for HLS streams so cards and previews display immediately
-    if (v.videoUrl && (v.videoUrl.includes("/hls/") || v.videoUrl.endsWith(".m3u8"))) {
-      const hlsPrefixMatch = v.videoUrl.match(/^(.*\/hls\/[^/?#]+)/);
-      const baseHlsUrl = hlsPrefixMatch ? hlsPrefixMatch[1] : v.videoUrl.substring(0, v.videoUrl.lastIndexOf("/"));
-      setQualityVariants({
-        "720p": `${baseHlsUrl}/720p/index.m3u8`,
-        "480p": `${baseHlsUrl}/480p/index.m3u8`,
-        "360p": `${baseHlsUrl}/360p/index.m3u8`,
-      });
-      setSourceAnalysis({
-        width: 1280,
-        height: 720,
-        duration: v.duration || 0,
-        formattedDuration: formatDurationSec(v.duration || 0),
-        maxQuality: "720p",
-        maxQualityLabel: "720P",
-      });
-    } else {
-      setQualityVariants({});
-      setSourceAnalysis(null);
-    }
+    setQualityVariants({});
+    setSourceAnalysis(null);
+    setIsInspectingVariants(!!source);
 
     setShowForm(true);
 
     // Call inspection endpoint to load exact verified variants & source analysis
-    if (v.videoUrl) {
+    if (source) {
       try {
-        const res = await api.post("/files/inspect-video-variants", { url: v.videoUrl });
+        const res = await api.post("/files/inspect-video-variants", { url: source });
         const data = res.data;
         if (data?.variants && Object.keys(data.variants).length > 0) {
           setQualityVariants(data.variants);
@@ -328,11 +317,14 @@ export default function Videos() {
           setSourceAnalysis({
             ...data.analysis,
             duration: data.analysis.duration || v.duration || 0,
-            formattedDuration: data.analysis.formattedDuration || (v.duration ? formatDurationSec(v.duration) : "00:00"),
+            formattedDuration: data.analysis.duration ? data.analysis.formattedDuration : formatDurationSec(v.duration || 0),
           });
         }
       } catch (err) {
         console.warn("[openEditVideo] Inspection des variantes échouée:", err);
+        toast.error("Impossible de vérifier les variantes existantes. Réessayez l’ouverture de la vidéo.");
+      } finally {
+        setIsInspectingVariants(false);
       }
     }
   };
@@ -1332,7 +1324,7 @@ export default function Videos() {
 
           {/* Variantes de Qualité Vidéo (1080p, 720p, 480p, 360p) */}
           <div className="sm:col-span-2 pt-2 border-t mt-2">
-            {usesCloudflare ? <p className="text-sm text-muted-foreground">Original conservé dans MinIO. Les qualités de lecture seront préparées automatiquement ; la vidéo sera publiée lorsque le traitement sera terminé.</p> : <VideoQualityVariants
+            {isInspectingVariants ? <p role="status" className="text-sm text-muted-foreground">Vérification des variantes existantes…</p> : usesCloudflare ? <p className="text-sm text-muted-foreground">Original conservé dans MinIO. Les qualités de lecture seront préparées automatiquement ; la vidéo sera publiée lorsque le traitement sera terminé.</p> : <VideoQualityVariants
               sourceUrl={rawSourceUrl || form.watch("videoUrl")}
               analysis={sourceAnalysis}
               variants={qualityVariants}

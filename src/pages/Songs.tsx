@@ -25,8 +25,10 @@ import { MultiSelect } from "../components/ui/multi-select";
 import { HelpCircle, Play, Pause, Pencil, Trash2 } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 import { TableSkeleton } from "@pyramidplay/ui";
+import { CreatorEmail } from "../components/ui/creator-email";
 
 type Song = {
+  creatorEmails?: string[];
   id: string;
   title: string;
   duration: number;
@@ -89,8 +91,8 @@ export default function Songs() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["songs"],
-    queryFn: async () => (await api.get("/songs")).data as Song[],
+    queryKey: ["songs", "admin"],
+    queryFn: async () => (await api.get("/songs/admin")).data as Song[],
   });
 
   const artistsQuery = useQuery({
@@ -321,13 +323,14 @@ export default function Songs() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <TableSkeleton rows={5} cols={4} />
+            <TableSkeleton rows={5} cols={5} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left bg-muted">
                   <tr>
                     <th className="p-2">Titre</th>
+                    <th scope="col" className="p-2">Email du créateur</th>
                     <th className="p-2">Durée (s)</th>
                     <th className="p-2">Audio URL</th>
                     <th className="p-2 text-right min-w-[130px]">Actions</th>
@@ -337,6 +340,7 @@ export default function Songs() {
                   {pageItems?.map((s) => (
                     <tr key={s.id} className="border-b">
                       <td className="p-2 font-medium">{s.title}</td>
+                      <td className="p-2 min-w-[200px]"><CreatorEmail emails={s.creatorEmails} /></td>
                       <td className="p-2">{s.duration}</td>
                       <td className="p-2 truncate max-w-[240px]">
                         <span className="text-xs text-muted-foreground" title={s.audioUrl}>{s.audioUrl}</span>

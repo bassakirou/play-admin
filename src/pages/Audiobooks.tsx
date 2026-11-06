@@ -10,10 +10,11 @@ import { Input } from "../components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthContext";
 import { canAccess } from "../auth/rbac";
+import { CreatorEmail } from "../components/ui/creator-email";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 import { CreatableOption } from "../components/ui/creatable-combobox";
-import { CreateAudiobookModal, MediaCardSkeleton } from "@pyramidplay/ui";
+import { CreateAudiobookModal, TableSkeleton } from "@pyramidplay/ui";
 import {
   BookHeadphones,
   Plus,
@@ -22,7 +23,6 @@ import {
   Trash2,
   ListMusic,
   Clock,
-  UserCheck,
   Layers,
   Flame,
   BookOpen,
@@ -342,156 +342,61 @@ export default function Audiobooks() {
         </CardContent>
       </Card>
 
-      {/* Audiobooks Grid */}
-      {isLoading ? (
-        <MediaCardSkeleton count={8} variant="audiobook" />
-      ) : paginated.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto">
-              <BookOpen className="w-6 h-6" />
+      <Card>
+        <CardContent className="pt-6">
+          {isLoading ? (
+            <TableSkeleton rows={5} cols={7} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left bg-muted">
+                  <tr>
+                    <th scope="col" className="p-3">Titre</th>
+                    <th scope="col" className="p-3">Auteur</th>
+                    <th scope="col" className="p-3">Email du créateur</th>
+                    <th scope="col" className="p-3">Catégorie</th>
+                    <th scope="col" className="p-3">Durée</th>
+                    <th scope="col" className="p-3">Chapitres</th>
+                    <th scope="col" className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginated.length === 0 ? (
+                    <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Aucun livre audio trouvé</td></tr>
+                  ) : paginated.map((book) => (
+                    <tr key={book.id} className="hover:bg-muted/30">
+                      <td className="p-3 font-medium">
+                        <div className="flex items-center gap-3">
+                          {book.coverUrl ? <img src={book.coverUrl} alt="" className="h-14 w-9 shrink-0 rounded object-cover" /> : <BookHeadphones className="h-9 w-9 shrink-0 text-muted-foreground" />}
+                          <div>
+                            <span className="line-clamp-2" title={book.title}>{book.title}</span>
+                            {book.narrator && <p className="text-xs text-muted-foreground">Voix : {book.narrator}</p>}
+                            {book.isTrending && <span className="text-xs text-amber-500">Tendance</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3">{book.author}</td>
+                      <td className="p-3 min-w-[200px]"><CreatorEmail emails={book.authorUser?.email ? [book.authorUser.email] : []} /></td>
+                      <td className="p-3 text-muted-foreground">{book.category}</td>
+                      <td className="p-3 whitespace-nowrap tabular-nums">{formatDuration(book.duration)}</td>
+                      <td className="p-3 tabular-nums">{book.chapters?.length || 0}</td>
+                      <td className="p-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button size="sm" variant="outline" onClick={() => { setEditingBook(book); setShowCreateModal(true); }} title={`Gérer les chapitres de ${book.title}`}>
+                            <ListMusic className="mr-1.5 h-4 w-4" />Chapitres
+                          </Button>
+                          {canUpdate && <Button size="icon" variant="outline" onClick={() => { setEditingBook(book); setShowCreateModal(true); }} title={`Modifier ${book.title}`} aria-label={`Modifier ${book.title}`}><Pencil className="h-4 w-4" /></Button>}
+                          {canDelete && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(book)} title={`Supprimer ${book.title}`} aria-label={`Supprimer ${book.title}`}><Trash2 className="h-4 w-4" /></Button>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <h3 className="font-semibold text-lg">Aucun livre audio trouvé</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Aucun livre audio ne correspond à vos filtres. Créez un nouveau livre audio pour enrichir la bibliothèque.
-            </p>
-            {canCreate && (
-              <Button
-                onClick={() => {
-                  setEditingBook(null);
-                  setShowCreateModal(true);
-                }}
-                className="gap-2 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                Créer un livre audio
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {paginated.map((book) => (
-            <Card
-              key={book.id}
-              className="overflow-hidden group hover:shadow-xl transition-all flex flex-col justify-between border-border/80 hover:border-indigo-500/40"
-            >
-              <div>
-                {/* Cover 10:16 aspect */}
-                <div className="relative aspect-[10/16] bg-slate-950 overflow-hidden">
-                  {book.coverUrl ? (
-                    <img
-                      src={book.coverUrl}
-                      alt={book.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-indigo-950/40 to-slate-900 text-indigo-400 p-4">
-                      <BookHeadphones className="w-12 h-12 mb-2 opacity-80" />
-                      <span className="text-xs font-semibold text-center line-clamp-2">
-                        {book.title}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Badges */}
-                  <div className="absolute top-2 left-2 flex flex-col gap-1">
-                    {book.isTrending && (
-                      <span className="flex items-center gap-1 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                        <Flame className="w-3 h-3 fill-black" /> Tendance
-                      </span>
-                    )}
-                    <span className="bg-black/70 backdrop-blur-md text-white text-[10px] px-2 py-0.5 rounded-full">
-                      {book.category}
-                    </span>
-                  </div>
-
-                  <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md text-white text-[11px] font-mono px-2 py-0.5 rounded-lg flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-indigo-400" />
-                    {formatDuration(book.duration)}
-                  </div>
-                </div>
-
-                {/* Info */}
-                <div className="p-4 space-y-2">
-                  <h3 className="font-bold text-sm line-clamp-1 leading-snug" title={book.title}>
-                    {book.title}
-                  </h3>
-
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
-                    {book.authorId && (
-                      <span title="Auteur membre vérifié">
-                        <UserCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      </span>
-                    )}
-                    <span className="truncate font-medium text-foreground">
-                      {book.author}
-                    </span>
-                  </div>
-
-                  {book.narrator && (
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      Voix : <span className="text-foreground">{book.narrator}</span>
-                    </div>
-                  )}
-
-                  <div className="pt-2 flex items-center justify-between text-xs text-muted-foreground border-t">
-                    <span className="flex items-center gap-1">
-                      <Layers className="w-3.5 h-3.5 text-indigo-400" />
-                      {book.chapters?.length || 0} chapitres
-                    </span>
-                    <span>⭐ {book.rating?.toFixed(1) || "5.0"}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions Footer */}
-              <div className="p-3 pt-0 flex items-center gap-1.5 border-t bg-muted/10">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingBook(book);
-                    setShowCreateModal(true);
-                  }}
-                  className="flex-1 text-xs gap-1.5 h-8 border-indigo-500/30 hover:bg-indigo-500/10 hover:text-indigo-300"
-                  title="Gérer les chapitres & modifier"
-                >
-                  <ListMusic className="w-3.5 h-3.5 text-indigo-400" />
-                  Chapitres ({book.chapters?.length || 0})
-                </Button>
-
-                {canUpdate && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingBook(book);
-                      setShowCreateModal(true);
-                    }}
-                    className="h-8 w-8 p-0"
-                    title="Modifier"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-
-                {canDelete && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setDeleteTarget(book)}
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pagination */}
       {totalPages > 1 && (

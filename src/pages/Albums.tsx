@@ -25,8 +25,10 @@ import { MultiSelect } from "../components/ui/multi-select";
 import { HelpCircle, Pencil, Trash2 } from "lucide-react";
 import { MediaSpecificationsDialog } from "../components/ui/media-specifications-dialog";
 import { TableSkeleton } from "@pyramidplay/ui";
+import { CreatorEmail } from "../components/ui/creator-email";
 
 type Album = {
+  creatorEmails?: string[];
   id: string;
   title: string;
   year: number;
@@ -92,8 +94,8 @@ export default function Albums() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["albums"],
-    queryFn: async () => (await api.get("/albums")).data as Album[],
+    queryKey: ["albums", "admin"],
+    queryFn: async () => (await api.get("/albums/admin")).data as Album[],
   });
 
   const artistsQuery = useQuery({
@@ -357,13 +359,14 @@ export default function Albums() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <TableSkeleton rows={5} cols={5} />
+            <TableSkeleton rows={5} cols={6} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left bg-muted">
                   <tr>
                     <th className="p-2">Titre</th>
+                    <th scope="col" className="p-2">Email du créateur</th>
                     <th className="p-2">Année</th>
                     <th className="p-2">Artist ID</th>
                     <th className="p-2">Groupe ID</th>
@@ -396,6 +399,7 @@ export default function Albums() {
                             <span>{a.title}</span>
                           </div>
                         </td>
+                        <td className="p-2 min-w-[200px]"><CreatorEmail emails={a.creatorEmails} /></td>
                         <td className="p-2">{a.year}</td>
                         <td className="p-2">{a.artistId || "—"}</td>
                         <td className="p-2">

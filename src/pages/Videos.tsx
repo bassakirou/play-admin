@@ -22,6 +22,7 @@ import { MediaSpecificationsDialog } from "../components/ui/media-specifications
 import { CreatableCombobox, CreatableMultiCombobox, VideoQualityVariants, type CreatableOption, type VideoSourceAnalysis, type QualityTier, TableSkeleton } from "@pyramidplay/ui";
 import { VideoStatsDialog } from "../components/videos/VideoStatsDialog";
 import { videoEditSource } from "../lib/video-edit-source";
+import { CreatorEmail } from "../components/ui/creator-email";
 
 type Channel = {
   id: string;
@@ -756,7 +757,7 @@ export default function Videos() {
           )}
 
           {videosLoading ? (
-            <TableSkeleton rows={6} cols={8} />
+            <TableSkeleton rows={6} cols={9} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -764,6 +765,7 @@ export default function Videos() {
                   <tr>
                     <th className="p-3 rounded-l-md">Titre</th>
                     <th className="p-3">Chaîne (Uploader)</th>
+                    <th scope="col" className="p-3">Email du créateur</th>
                     <th className="p-3">Catégorie</th>
                     <th className="p-3">Tags</th>
                     <th className="p-3">Durée</th>
@@ -777,7 +779,7 @@ export default function Videos() {
                     <tr>
                       <td
                         className="p-8 text-center text-sm text-muted-foreground"
-                        colSpan={8}
+                        colSpan={9}
                       >
                         Aucune vidéo trouvée
                       </td>
@@ -820,6 +822,7 @@ export default function Videos() {
                               </span>
                             </div>
                           </td>
+                          <td className="p-3 min-w-[200px]"><CreatorEmail emails={v.userId && v.user?.email ? [v.user.email] : []} /></td>
                           <td className="p-3 text-muted-foreground">{v.category || "—"}</td>
                           <td className="p-3 text-muted-foreground max-w-[150px] truncate" title={Array.isArray(v.tags) ? v.tags.join(", ") : String(v.tags || "")}>
                             {Array.isArray(v.tags) && v.tags.length > 0
